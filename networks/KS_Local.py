@@ -1,5 +1,6 @@
 import networkx as nx
 import matplotlib.pyplot as plt
+from copy import deepcopy
 
 
 class Local_KS(object):
@@ -9,12 +10,33 @@ class Local_KS(object):
 
     def __init__(self, name = None, filename = None):
         self.name = name
-        self.network = self.init_network(filename)
+        self.network = self.init_network(name, filename)
 
-    def init_network(self, filename):
+    def init_network(self, name, filename):
         G = nx.read_pajek("../data_sources/{}".format(filename))
         G1 = nx.DiGraph(G)
-        return G1
+        G2 = deepcopy(G1)
+
+        for node in G2.nodes(data=True):
+            x = node[1]['x']
+            y = node[1]['y']
+            z = float()
+            pos = (x,y,z)
+
+            del_keys = [k for k in node[1].keys()]
+
+            for key in del_keys:
+                del node[1][key]
+
+            node[1]['pos'] = pos
+            node[1]['node_name'] = node[0]
+            node[1]['layer'] = name
+            ################# Below may need to be changed!!!
+            node[1]['val'] = None
+            node[1]['data_status'] = None
+
+        G3 = nx.convert_node_labels_to_integers(G2)
+        return G3
 
     def save_network(self, filename = 'untitled_network'):
         plt.figure()

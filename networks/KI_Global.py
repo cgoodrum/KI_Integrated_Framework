@@ -30,9 +30,9 @@ class Knowledge_Network(object):
     def __repr__(self):
         return '<{}>'.format(getattr(self, '__name__', self.__class__.__name__))
 
-    def __init__(self, name = None, target_node = 0, time_step = 0):
+    def __init__(self, name = None, time_step = 0):
         self.name = name
-        self.target_node = target_node
+        self.target_node = []
         self.time_step = time_step
         self.rework_time = float()
         self.network = self.init_network()
@@ -56,13 +56,15 @@ class Knowledge_Network(object):
             status = 0.0
         return status
 
-    def add_attributes(self, name = '', value = None):
+    def add_attributes(self, name = None, layer = None, value = None, pos = (float(),float(),float())):
         if value:
             status = 1.0
         else:
             status = 0.0
         out_dict = {
             'node_name': name,
+            'layer': layer,
+            'pos': pos,
             'val': value,
             'data_status': status
         }
@@ -214,6 +216,24 @@ class Knowledge_Network(object):
     def run(self):
         raise NotImplementedError
 
+    def apply_layout(self, layout = "spring", **kwargs):
+
+        def spring(network, **kwargs):
+            pos = nx.spring_layout(network, **kwargs)
+
+            for n in network.nodes():
+                network.node[n]['pos'] = list(network.node[n]['pos'])
+                network.node[n]['pos'][0] = pos[n][0]
+                network.node[n]['pos'][1] = pos[n][1]
+                network.node[n]['pos'] = tuple(network.node[n]['pos'])
+            return pos
+
+        method = {
+            "spring": spring(self.network, **kwargs)
+        }
+
+        return method[layout]
+
 class Integrated_Framework(object):
 
     def __repr__(self):
@@ -221,44 +241,87 @@ class Integrated_Framework(object):
 
     def __init__(self):
         self.local_K = KS_Local.main()
-        self.global_K = KS_Global()
-        self.global_I = IS_Global()
+        self.global_K = K_Global()
+        self.global_I = I_Global()
+        self.layered_network = self.init_network()
         self.time_step = 0
+
+    def init_network(self):
+        G = nx.DiGraph()
+        return G
+
+    def build_layered_network(self):
+        mapping = {}
+        local_networks = [local.network for local in self.local_K.values()]
+        all_networks = local_networks + [self.global_K.network] + [self.global_I.network]
+        G = nx.disjoint_union_all(all_networks)
+        return G
+
+    def add_node_to_IG_from_KG(self, KG_node = None):
+        if KG_node:
+            self.global_I.network.add_node(KG_node, **self.add_attributes())
+        else:
+            "No node added to Global Information from Global Knowledge. Specify node to add."
+        return self.global_I.network
+
+    def add_edge_from_KG_to_IG(self, KG_node =None, IG_node = None):
+        pass
+
+    def add_node_to_IG_from_KL(self):
+        pass
+
+    def add_edge_from_KL_to_IG(self):
+        pass
+
 
     def draw_framework(self,
         hoz_offset = 1500,
         vert_offset = 100,
+        labels = True,
         color = {
             "OPS": "green",
             "DIST": "blue",
-            "NAVARCH": "red"
+            "NAVARCH": "red",
+            "K_GLOBAL": "grey",
+            "I_GLOBAL": "yellow"
+            },
+        label_kwargs = {
+            'color': 'black',
+            'size': '6'
             }
         ):
 
-        # Draw local Knowledge layers
+        fig = plt.figure()
+        ax = Axes3D(fig)
+
+        #-----------------------Draw local Knowledge layers--------------------
         name_pos = {}
         edges = {}
         lat_offset = float(0)
         for name, local_class in self.local_K.items():
             edges[name] = local_class.network.edges()
             pos = {}
+
             for node_data in local_class.network.nodes(data=True):
-                pos[node_data[0]] = (node_data[1]['x']+lat_offset, node_data[1]['y'], vert_offset*2)
+                pos[node_data[0]] = (node_data[1]['pos'][0]+lat_offset, node_data[1]['pos'][1], node_data[1]['pos'][2]+ vert_offset*2.0)
             name_pos[name] = pos
             lat_offset += hoz_offset
 
-        fig = plt.figure()
-        ax = Axes3D(fig)
-
+            #node_data[1]['node_name']
         for name, local_class in self.local_K.items():
             # PLOT NODES
             for _name, _node in name_pos[name].items():
-                label = _name
+                label = local_class.network.node[_name]['node_name']
                 xi = _node[0]
                 yi = _node[1]
                 zi = _node[2]
 
                 ax.scatter(xi,yi,zi, c=color[name])
+
+                if labels == True:
+                    ax.text(xi,yi,zi,label, **label_kwargs)
+
+
             # PLOT EDGES
             for edge in edges[name].keys():
                 x = np.array((name_pos[name][edge[0]][0], name_pos[name][edge[1]][0]))
@@ -267,15 +330,30 @@ class Integrated_Framework(object):
 
                 ax.plot(x,y,z,c='black')
 
-        # Draw Global Knowledge layer
+        #------------------- Draw Global Knowledge layer-----------------------
         for node in self.global_K.network.nodes(data=True):
-            ax.scatter(node[1]['pos'][0], node[1]['pos'][1], node[1]['pos'][2]+vert_offset*0, c='black')
+            label = node[0]
+            xi = node[1]['pos'][0]
+            yi = node[1]['pos'][1]
+            zi = node[1]['pos'][2]+vert_offset*0.0
 
+            ax.scatter(xi, yi, zi, c=color['K_GLOBAL'])
+
+            if labels == True:
+                ax.text(xi,yi,zi,label, **label_kwargs)
         # TO DO: DRAW EDGES
 
-        # Draw Global Information layer
+        # -------------------Draw Global Information layer---------------------
         for node in self.global_I.network.nodes(data=True):
-            ax.scatter(node[1]['pos'][0], node[1]['pos'][1], node[1]['pos'][2]+vert_offset*1, c='black')
+            label = node[0]
+            xi = node[1]['pos'][0]
+            yi = node[1]['pos'][1]
+            zi = node[1]['pos'][2]+vert_offset*1.0
+
+            ax.scatter(xi, yi, zi, c=color['I_GLOBAL'])
+
+            if labels == True:
+                ax.text(xi,yi,zi,label, **label_kwargs)
 
         # TO DO: DRAW EDGES
 
@@ -283,7 +361,7 @@ class Integrated_Framework(object):
         ax.set_axis_off()
         plt.show()
 
-class KS_Global(Knowledge_Network):
+class K_Global(Knowledge_Network):
 
     def __repr__(self):
         return '<{}>'.format(getattr(self, '__name__', self.__class__.__name__))
@@ -292,11 +370,14 @@ class KS_Global(Knowledge_Network):
         Knowledge_Network.__init__(self, **kwargs)
         self.data = data
 
-    def test_network(self):
-        self.network.add_node(0, **{'pos': (1500, 0, 0)})
+    def add_target_node(self, target_node_label=None):
+        self.target_node.append(target_node_label)
+        self.network.add_node(target_node_label, **self.add_attributes(name=target_node_label, layer = "K_GLOBAL"))
         return self.network
 
-class IS_Global(Knowledge_Network):
+
+
+class I_Global(Knowledge_Network):
 
     def __repr__(self):
         return '<{}>'.format(getattr(self, '__name__', self.__class__.__name__))
@@ -305,15 +386,22 @@ class IS_Global(Knowledge_Network):
         Knowledge_Network.__init__(self, **kwargs)
         self.data = data
 
-    def test_network(self):
-        self.network.add_node(0, **{'pos': (1500, 0, 0)})
-        return self.network
+
+
+
 
 
 def main():
     KIF = Integrated_Framework()
-    KIF.global_K.test_network()
-    KIF.global_I.test_network()
+
+    KIF.global_K.add_target_node('GMt')
+
+    KIF.global_K.apply_layout(layout='spring', scale = 500, center = (1500,0), dim = 2 )
+    KIF.build_layered_network()
+    #KIF.global_I.add_node_from_KG(KIF.global_K.target_node[0])
+    KIF.global_I.apply_layout(layout='spring', scale = 500, center = (1500,0), dim = 2 )
+    #print(KIF.global_K.target_node)
+    #KIF.global_I.test_network()
     KIF.draw_framework()
 
 
