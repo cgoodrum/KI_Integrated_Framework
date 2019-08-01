@@ -33,10 +33,16 @@ class Local_KS(object):
             node[1]['layer'] = name
             ################# Below may need to be changed!!!
             node[1]['val'] = None
-            node[1]['data_status'] = None
+            node[1]['data_status'] = 0.0
 
         G3 = nx.convert_node_labels_to_integers(G2)
-        return G3
+
+        for e in G3.edges(data=False):
+            G3.edges[e]['layer'] = name
+            G3.edges[e]['type'] = 'INTERNAL'
+
+        G4 = nx.MultiDiGraph(G3)
+        return G4
 
     def save_network(self, filename = 'untitled_network'):
         plt.figure()
