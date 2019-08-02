@@ -1,0 +1,39 @@
+NAVARCH:
+  density_JP5: 845.0 #kg/m3
+  LWL: 237.0 #m
+  B: 32.0 #m
+  T: 8.5 #m
+  D: 20.0 #m
+  Cb: 0.64
+  LCB: 118.5 #m from AP
+  BML: 180.0 #m
+  KB: 4.3 #m
+  BMT: 6.0 #m
+  W_LS: 28628.0 #tonnes
+  x_LS: 118.5 #m from AP
+  z_LS: 10.0 #m abv BL
+  W_misc: 12000.0 #tonnes
+  x_misc: 116.0 #m from AP
+  z_misc: 11.0 #m abv BL
+  x_fuel: 155.0 #m from AP
+  z_fuel: 4.0 #m abv BL
+
+OPS:
+  density_JP5: 845.0 #kg/m3
+  w_F35: 13.30 #tonnes
+  w_V22: 15.03 #tonnes
+  w_AV8B: 6.74 #tonnes
+  w_SH60: 8.05 #tonnes
+  SFC_F35: 250.0 #lbs/min
+  SFC_V22: 90.0 #lbs/min
+  SFC_AV8B: 210.0 #lbs/min
+  SFC_SH60: 18.3 #lbs/min
+  endurance_days: 10 #days
+  sortie_rate: 2 #sorties/aircraft/day
+  sortie_duration: 60 #mins/sortie
+  max_fuel_rate: 1000 #lbs/min
+  refuel_time: 30 #mins
+
+DIST:
+  pipe_diameter: 0.1  #m
+  density_JP5: 845 #kg/m3

@@ -82,7 +82,8 @@ class Knowledge_Network(object):
             'node_name': name,
             'layer': layer,
             'val': value,
-            'data_status': status
+            'data_status': status,
+            'time': self.time_step
         }
         return out_dict
 
@@ -262,7 +263,7 @@ class Integrated_Framework(Knowledge_Network):
         self.global_K = K_Global()
         self.global_I = I_Global()
         self.network = self.init_network()
-        self.time_step = 0
+        self.time_step = 1
 
     def init_network(self):
         G = nx.MultiDiGraph()
@@ -303,7 +304,7 @@ class Integrated_Framework(Knowledge_Network):
             # Add node to global information network
             self.global_I.network.add_node(new_node_id, **self.add_attributes(name = name, layer = 'I_GLOBAL', **kwargs))
             # Add edge from KG node to new IG node
-            self.network.add_edge(old_node_id, new_node_id, layer = "BETWEEN", type = "CREATE", weight = 1.0)
+            self.network.add_edge(old_node_id, new_node_id, layer = "BETWEEN", type = "CREATE", weight = 1.0, time = self.time_step)
         else:
             print("No node added to Global Information from Global Knowledge. Specify node name to add.")
         return self.network
@@ -325,7 +326,7 @@ class Integrated_Framework(Knowledge_Network):
             # Add node to global information network
             self.global_I.network.add_node(new_node_id, **self.add_attributes(name = name, layer = 'I_GLOBAL', **kwargs))
             # Add edge from KL node to new IG node
-            self.network.add_edge(old_node_id, new_node_id, layer = "BETWEEN", type = "CREATE", weight = 1.0)
+            self.network.add_edge(old_node_id, new_node_id, layer = "BETWEEN", type = "CREATE", weight = 1.0, time = self.time_step)
         else:
             print("No node added to Global Information from Local Knowledge. Specify local node name to add.")
         return self.network
@@ -339,16 +340,16 @@ class Integrated_Framework(Knowledge_Network):
             else:
                 global_node_id = self.get_node_id(node_name=IG_node, layer= "I_GLOBAL")
                 local_node_id = self.get_node_id(node_name=IG_node, layer= local_layer)
-                self.network.add_edge(global_node_id, local_node_id, layer = "BETWEEN", type = "SELECT", weight = 1.0)
+                self.network.add_edge(global_node_id, local_node_id, layer = "BETWEEN", type = "SELECT", weight = 1.0, time = self.time_step)
         return local_node_id
 
     def create_update_edge(self, start_node_name = None, start_layer = None, end_node_name = None, end_layer = None, **kwargs):
         start_node_id = self.get_node_id(node_name = start_node_name, layer = start_layer)
         end_node_id = self.get_node_id(node_name = end_node_name, layer = end_layer)
         if start_layer == end_layer:
-            self.network.add_edge(start_node_id, end_node_id, layer = "INTERNAL", type = "UPDATE", weight = 1.0)
+            self.network.add_edge(start_node_id, end_node_id, layer = "INTERNAL", type = "UPDATE", weight = 1.0, time = self.time_step)
         else:
-            self.network.add_edge(start_node_id, end_node_id, layer = "BETWEEN", type = "UPDATE", weight = 1.0)
+            self.network.add_edge(start_node_id, end_node_id, layer = "BETWEEN", type = "UPDATE", weight = 1.0, time = self.time_step)
         return self.network
 
     def get_node_id(self, node_name = None, layer = None, **kwargs):
@@ -487,6 +488,34 @@ class Integrated_Framework(Knowledge_Network):
         ax.set_axis_off()
         plt.show()
 
+    def create_dataframe(self):
+
+        df = nx.to_pandas_edgelist(self.network)
+        edge_dict = df.to_dict()
+
+        mapping = {'source': {}, 'target': {}}
+        for node_type, node_data in mapping.items():
+            for k, v in self.network.nodes(data=True):
+                for k2 in v.keys():
+                    mapping[node_type][k2] = '{}_{}'.format(node_type, k2)
+
+        tdfs = []
+        for node_type in mapping.keys():
+            dfs = []
+            for i, row in df.iterrows():
+                node_data = self.network.node[row[node_type]]
+                new_data = deepcopy(node_data)
+                new_data['pos'] = [new_data['pos']]
+                temp_df = pd.DataFrame(new_data)
+                temp_df.rename(columns=mapping[node_type], inplace=True)
+                dfs.append(temp_df)
+            tdf = pd.concat(dfs, ignore_index = True)
+            tdfs.append(tdf)
+        temp_df = pd.concat(tdfs, ignore_index = False, axis=1)
+        df_out = pd.concat([df,temp_df],axis=1, sort=False)
+        return df_out
+
+
 class K_Global(Knowledge_Network):
 
     def __repr__(self):
@@ -513,6 +542,12 @@ class I_Global(Knowledge_Network):
         self.data = data
 
 
+def save_pickle(dataframe, filename):
+    dataframe.to_pickle('../results\\{}.pkl'.format(filename))
+
+def get_pickle(filename):
+    return pd.read_pickle('../results\\{}.pkl'.format(filename))
+
 def main():
     KIF = Integrated_Framework()
 
@@ -522,24 +557,12 @@ def main():
     KIF.grow_IG_from_KL("W_fuel","NAVARCH")
     KIF.select_KL_node_from_IG("GMT","NAVARCH")
     KIF.create_update_edge("GMT", "NAVARCH", "GMT", "I_GLOBAL")
+    KIF.create_update_edge("GMT", "NAVARCH", "GMT", "I_GLOBAL")
 
-    #KIF.update_node_positions()
-    #KIF.global_K.apply_layout(layout='spring', scale = 500, center = (1500,0), dim = 2 )
-    #KIF.global_I.apply_layout(layout='spring', scale = 500, center = (1500,0), dim = 2 )
+    df = KIF.create_dataframe()
+    print(df[df['source_data_status']==1.0])
 
-    #KIF.network.add_edge(77,78, layer="BETWEEN")
-    #KIF.network.add_edge(78,72, layer="BETWEEN")
 
-    #for (n1, n2, data) in KIF.network.edges(data=True):
-    # print(KIF.network.node[n1]['node_name'],(KIF.network.node[n1]['layer']), KIF.network.node[n2]['node_name'], (KIF.network.node[n2]['layer']), data)
-
-    df = nx.to_pandas_edgelist(KIF.network)
-    temp = df[df['layer'] == "BETWEEN"]
-    print(df)
-
-    #KIF.global_I.add_node_from_KG(KIF.global_K.target_node[0])
-    #print(KIF.global_K.target_node)
-    #KIF.global_I.test_network()
     KIF.draw_framework()
 
 
