@@ -22,6 +22,10 @@ import random as rd
 import numpy as np
 import pandas as pd
 from copy import deepcopy
+from openpyxl import load_workbook
+import csv
+import xlwings as xw
+
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(stream=sys.stdout, format = '%(levelname)s: %(message)s', level=logging.INFO)
@@ -38,7 +42,30 @@ class Arrow3D(FancyArrowPatch):
         self.set_positions((xs[0],ys[0]),(xs[1],ys[1]))
         FancyArrowPatch.draw(self, renderer)
 
+class Excel(object):
+    def __init__(self,src):
+        self.app = xw.App(visible=False)
+        self.wb = xw.Book(src)
+        self.ws = self.wb.sheets
+        self.dest= src
 
+    # Write the value in the cell defined by row_dest+column_dest
+    def write_workbook(self,sheet,cell,value):
+        self.ws[sheet].range(cell).value = value
+
+    # Save excel file
+    def save_excel(self) :
+        self.wb.save(self.dest)
+
+    # Get cell value
+    def get_cell_val(self, sheet, cell):
+        temp = self.ws[sheet].range(cell).value
+        #self.wb.close()
+        return temp
+
+    def close(self):
+        self.wb.close()
+        self.app.kill()
 
 class Knowledge_Network(object):
     # This class defines the knowledge network for a single layer
@@ -515,6 +542,28 @@ class Integrated_Framework(Knowledge_Network):
         df_out = pd.concat([df,temp_df],axis=1, sort=False)
         return df_out
 
+    def calculate_local_values(self):
+        temp = Excel("../excel\\test.xlsx")
+        temp.write_workbook("Sheet1","A2",11)
+        ans = temp.get_cell_val("Sheet1", "C2")
+        temp.save_excel()
+        temp.close()
+
+
+
+
+    def find_negotiated_nodes(self, target_node_name, local_layer_name):
+        out_nodes = []
+        target_node = [n for n, data in self.local_K[local_layer_name].network.nodes(data=True) if data['node_name'] == target_node_name]
+        for node in target_node:
+            ancestors = list(nx.ancestors(self.local_K[local_layer_name].network, node))
+
+        for node in ancestors:
+            if self.local_K[local_layer_name].network.in_degree(node) == 0 and self.local_K[local_layer_name].network.node[node]['data_status'] == 0:
+                out_nodes.append(node)
+        out_data = [(n,self.local_K[local_layer_name].network.node[n]['node_name']) for n in out_nodes]
+        return out_data
+
 
 class K_Global(Knowledge_Network):
 
@@ -559,11 +608,13 @@ def main():
     KIF.create_update_edge("GMT", "NAVARCH", "GMT", "I_GLOBAL")
     KIF.create_update_edge("GMT", "NAVARCH", "GMT", "I_GLOBAL")
 
+    KIF.calculate_local_values()
+
     df = KIF.create_dataframe()
-    print(df[df['source_data_status']==1.0])
+    #print(df[df['source_data_status']==1.0])
 
 
-    KIF.draw_framework()
+    #KIF.draw_framework()
 
 
 
