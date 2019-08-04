@@ -24,15 +24,21 @@ OPS:
   w_V22: 15.03 #tonnes
   w_AV8B: 6.74 #tonnes
   w_SH60: 8.05 #tonnes
-  SFC_F35: 250.0 #lbs/min
-  SFC_V22: 90.0 #lbs/min
-  SFC_AV8B: 210.0 #lbs/min
-  SFC_SH60: 18.3 #lbs/min
+  SFC_F35: 113.4 #kg/min
+  SFC_V22: 40.8  #kg/min
+  SFC_AV8B: 95.2 #kg/min
+  SFC_SH60: 8.3 #kg/min
   endurance_days: 10 #days
   sortie_rate: 2 #sorties/aircraft/day
   sortie_duration: 60 #mins/sortie
   max_fuel_rate: 1000 #lbs/min
   refuel_time: 30 #mins
+  x_veh: 50.0
+  z_veh: 23.0
+  n_F35: 1 #units
+  n_V22: 1 #units
+  n_AV8B: 20 #units
+  n_SH60: 6 #units
 
 DIST:
   pipe_diameter: 0.1  #m

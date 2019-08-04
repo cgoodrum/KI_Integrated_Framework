@@ -25,12 +25,13 @@ from copy import deepcopy
 from openpyxl import load_workbook
 import csv
 import xlwings as xw
+import yaml
 
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(stream=sys.stdout, format = '%(levelname)s: %(message)s', level=logging.INFO)
 
-
+###############################################################################
 class Arrow3D(FancyArrowPatch):
     def __init__(self, xs, ys, zs, *args, **kwargs):
         FancyArrowPatch.__init__(self, (0,0), (0,0), *args, **kwargs)
@@ -42,31 +43,41 @@ class Arrow3D(FancyArrowPatch):
         self.set_positions((xs[0],ys[0]),(xs[1],ys[1]))
         FancyArrowPatch.draw(self, renderer)
 
+###############################################################################
 class Excel(object):
-    def __init__(self,src):
+    def __init__(self,excel_filename, references_filename):
         self.app = xw.App(visible=False)
-        self.wb = xw.Book(src)
+        self.wb = xw.Book("../excel\\{}".format(excel_filename))
         self.ws = self.wb.sheets
-        self.dest= src
+        self.dest= "../excel\\{}".format(excel_filename)
+        self.cell_references = self.import_cell_references("../excel\\{}".format(references_filename))
 
-    # Write the value in the cell defined by row_dest+column_dest
-    def write_workbook(self,sheet,cell,value):
+    # Write value to cell
+    def write_val(self,sheet,cell,value):
         self.ws[sheet].range(cell).value = value
+
+    # Get cell value
+    def read_val(self, sheet, cell):
+        val = self.ws[sheet].range(cell).value
+        return val
 
     # Save excel file
     def save_excel(self) :
         self.wb.save(self.dest)
 
-    # Get cell value
-    def get_cell_val(self, sheet, cell):
-        temp = self.ws[sheet].range(cell).value
-        #self.wb.close()
-        return temp
+    def import_cell_references(self, references_filename):
+        if references_filename:
+            with open(references_filename, 'r') as stream:
+                data_loaded = yaml.safe_load(stream)
+            return data_loaded
+        else:
+            print('Please input yaml filename.')
 
     def close(self):
         self.wb.close()
         self.app.kill()
 
+###############################################################################
 class Knowledge_Network(object):
     # This class defines the knowledge network for a single layer
 
@@ -278,6 +289,7 @@ class Knowledge_Network(object):
 
         return method[layout]
 
+###############################################################################
 class Integrated_Framework(Knowledge_Network):
 
     def __repr__(self):
@@ -384,10 +396,6 @@ class Integrated_Framework(Knowledge_Network):
             node = [n for n, data in self.network.nodes(data=True) if (data['layer'] == layer and data['node_name'] == node_name)]
             node_id = node[0]
         return node_id
-
-    def update_data_status(self, node):
-        # Need to write code to update the data status of a node based on nodes it is connected to.
-        pass
 
     def get_new_node_id(self):
         new_node_id = max(self.network.nodes()) + 1
@@ -542,15 +550,17 @@ class Integrated_Framework(Knowledge_Network):
         df_out = pd.concat([df,temp_df],axis=1, sort=False)
         return df_out
 
-    def calculate_local_values(self):
-        temp = Excel("../excel\\test.xlsx")
-        temp.write_workbook("Sheet1","A2",11)
-        ans = temp.get_cell_val("Sheet1", "C2")
-        temp.save_excel()
-        temp.close()
+    def update_local_node_values(self, list_of_nodes = [], local_layer_name = "" ):
+        # This should take a list of nodes to update, place their values into the excel sheet, and place all new values into the network.
+        pass
 
+    def request_node_value(self):
+        #
+        pass
 
-
+    def send_node_value(self, origin_node, destination_node):
+        # copies node value from origin node to destination node
+        pass
 
     def find_negotiated_nodes(self, target_node_name, local_layer_name):
         out_nodes = []
@@ -564,7 +574,7 @@ class Integrated_Framework(Knowledge_Network):
         out_data = [(n,self.local_K[local_layer_name].network.node[n]['node_name']) for n in out_nodes]
         return out_data
 
-
+###############################################################################
 class K_Global(Knowledge_Network):
 
     def __repr__(self):
@@ -580,7 +590,7 @@ class K_Global(Knowledge_Network):
         return self.network
 
 
-
+###############################################################################
 class I_Global(Knowledge_Network):
 
     def __repr__(self):
@@ -590,14 +600,19 @@ class I_Global(Knowledge_Network):
         Knowledge_Network.__init__(self, **kwargs)
         self.data = data
 
-
+###############################################################################
 def save_pickle(dataframe, filename):
     dataframe.to_pickle('../results\\{}.pkl'.format(filename))
 
 def get_pickle(filename):
     return pd.read_pickle('../results\\{}.pkl'.format(filename))
 
+###############################################################################
 def main():
+
+    excel_filename = "local_calculations.xlsx"
+    cell_references_filename = "cell_references.yaml"
+
     KIF = Integrated_Framework()
 
     KIF.build_layered_network()
@@ -608,7 +623,8 @@ def main():
     KIF.create_update_edge("GMT", "NAVARCH", "GMT", "I_GLOBAL")
     KIF.create_update_edge("GMT", "NAVARCH", "GMT", "I_GLOBAL")
 
-    KIF.calculate_local_values()
+
+    #KIF.calculate_local_values(excel_filename, cell_references_filename, "NAVARCH")
 
     df = KIF.create_dataframe()
     #print(df[df['source_data_status']==1.0])

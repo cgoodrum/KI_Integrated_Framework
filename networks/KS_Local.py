@@ -2,6 +2,40 @@ import networkx as nx
 import matplotlib.pyplot as plt
 from copy import deepcopy
 import yaml
+import xlwings as xw
+
+class Excel(object):
+    def __init__(self,excel_filename, references_filename):
+        self.app = xw.App(visible=False)
+        self.wb = xw.Book("../excel\\{}".format(excel_filename))
+        self.sheets = self.wb.sheets
+        self.dest= "../excel\\{}".format(excel_filename)
+        self.cell_references = self.import_cell_references("../excel\\{}".format(references_filename))
+
+    # Write value to cell
+    def write_val(self,sheet,cell,value):
+        self.sheets[sheet].range(cell).value = value
+
+    # Get cell value
+    def read_val(self, sheet, cell):
+        val = self.sheets[sheet].range(cell).value
+        return val
+
+    # Save excel file
+    def save_excel(self) :
+        self.wb.save(self.dest)
+
+    def import_cell_references(self, references_filename):
+        if references_filename:
+            with open(references_filename, 'r') as stream:
+                data_loaded = yaml.safe_load(stream)
+            return data_loaded
+        else:
+            print('Please input yaml filename.')
+
+    def close(self):
+        self.wb.close()
+        self.app.kill()
 
 class Local_KS(object):
 
@@ -33,20 +67,32 @@ class Local_KS(object):
             node[1]['node_name'] = node[0]
             node[1]['layer'] = name
 
-            if self.data:
-                if node[0] in self.data.keys():
-                    node[1]['val'] = self.data[node[0]]
-                    node[1]['data_status'] = 1.0
-                else:
-                    node[1]['val'] = None
-                    node[1]['data_status'] = 0.0
-            else:
-                node[1]['val'] = None
+            node[1]['val'] = self.data[node[0]]
+
+            if node[1]['val'] is None:
                 node[1]['data_status'] = 0.0
+            else:
+                node[1]['data_status'] = 1.0
+
+
+
+
+
+            # if self.data:
+            #     if node[0] in self.data.keys():
+            #         node[1]['val'] = self.data[node[0]]
+            #         node[1]['data_status'] = 1.0
+            #     else:
+            #         node[1]['val'] = None
+            #         node[1]['data_status'] = 0.0
+            # else:
+            #     node[1]['val'] = None
+            #     node[1]['data_status'] = 0.0
+
             node[1]['time'] = 0
 
         G3 = nx.convert_node_labels_to_integers(G2)
-        
+
         for e in G3.edges(data=False):
             G3.edges[e]['layer'] = name
             G3.edges[e]['type'] = 'INTERNAL'
@@ -62,15 +108,28 @@ class Local_KS(object):
 
 def import_yaml(filename = None):
     if filename:
-        with open("../inputs\\{}.yaml".format(filename), 'r') as stream:
+        with open(filename, 'r') as stream:
             data_loaded = yaml.safe_load(stream)
         return data_loaded
     else:
         print('Please input yaml filename.')
 
+def get_data(excel_filename, references_filename):
+    data_dict = {}
+    excel_doc = Excel(excel_filename, references_filename)
+
+    for layer, references in excel_doc.cell_references.items():
+        data_dict[layer] = {}
+        for node_name, cell_id in references.items():
+            data_dict[layer][node_name] = excel_doc.read_val(layer,cell_id)
+
+    excel_doc.close()
+    return data_dict
+
 def main():
 
-    yaml_data = import_yaml('initial_values')
+    yaml_data = get_data("local_calculations.xlsx", "cell_references.yaml")
+    
     layer_names = {
         "NAVARCH": "KS_navarch.net",
         "OPS": "KS_operations.net",
