@@ -74,21 +74,6 @@ class Local_KS(object):
             else:
                 node[1]['data_status'] = 1.0
 
-
-
-
-
-            # if self.data:
-            #     if node[0] in self.data.keys():
-            #         node[1]['val'] = self.data[node[0]]
-            #         node[1]['data_status'] = 1.0
-            #     else:
-            #         node[1]['val'] = None
-            #         node[1]['data_status'] = 0.0
-            # else:
-            #     node[1]['val'] = None
-            #     node[1]['data_status'] = 0.0
-
             node[1]['time'] = 0
 
         G3 = nx.convert_node_labels_to_integers(G2)
@@ -129,7 +114,7 @@ def get_data(excel_filename, references_filename):
 def main():
 
     yaml_data = get_data("local_calculations.xlsx", "cell_references.yaml")
-    
+
     layer_names = {
         "NAVARCH": "KS_navarch.net",
         "OPS": "KS_operations.net",

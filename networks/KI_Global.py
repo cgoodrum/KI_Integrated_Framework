@@ -48,17 +48,17 @@ class Excel(object):
     def __init__(self,excel_filename, references_filename):
         self.app = xw.App(visible=False)
         self.wb = xw.Book("../excel\\{}".format(excel_filename))
-        self.ws = self.wb.sheets
+        self.sheets = self.wb.sheets
         self.dest= "../excel\\{}".format(excel_filename)
         self.cell_references = self.import_cell_references("../excel\\{}".format(references_filename))
 
     # Write value to cell
     def write_val(self,sheet,cell,value):
-        self.ws[sheet].range(cell).value = value
+        self.sheets[sheet].range(cell).value = value
 
     # Get cell value
     def read_val(self, sheet, cell):
-        val = self.ws[sheet].range(cell).value
+        val = self.sheets[sheet].range(cell).value
         return val
 
     # Save excel file
@@ -314,6 +314,15 @@ class Integrated_Framework(Knowledge_Network):
         self.network = nx.disjoint_union_all(all_networks)
         return self.network
 
+    def calculate_data_status(self, node_id):
+        # Determines the data status of a node based on if it has a value or
+        # not.
+        if self.network.node[node]['val']:
+            status = 1.0
+        else:
+            status = 0.0
+        return status
+
     def add_KG_target_node(self, name = None, **kwargs):
         if name:
             # Get new node ID for added target node
@@ -390,6 +399,14 @@ class Integrated_Framework(Knowledge_Network):
         else:
             self.network.add_edge(start_node_id, end_node_id, layer = "BETWEEN", type = "UPDATE", weight = 1.0, time = self.time_step)
         return self.network
+
+    def send_node_value(self, start_node_name = None, start_layer = None, end_node_name = None, end_layer = None, **kwargs):
+        # copies node value from origin node to destination node
+        start_node_id = self.get_node_id(node_name = start_node_name, layer = start_layer)
+        end_node_id = self.get_node_id(node_name = end_node_name, layer = end_layer)
+        self.network.node[end_node_id]['val'] = self.network.node[start_node_id]['val']
+        self.network.node[end_node_id]['data_status'] = self.network.node[start_node_id]['data_status'] ## CHECK??
+        self.create_update_edge(start_node_name, start_layer, end_node_name, end_layer)
 
     def get_node_id(self, node_name = None, layer = None, **kwargs):
         if node_name:
@@ -526,7 +543,6 @@ class Integrated_Framework(Knowledge_Network):
     def create_dataframe(self):
 
         df = nx.to_pandas_edgelist(self.network)
-        edge_dict = df.to_dict()
 
         mapping = {'source': {}, 'target': {}}
         for node_type, node_data in mapping.items():
@@ -550,23 +566,38 @@ class Integrated_Framework(Knowledge_Network):
         df_out = pd.concat([df,temp_df],axis=1, sort=False)
         return df_out
 
-    def update_local_node_values(self, list_of_nodes = [], local_layer_name = "" ):
-        # This should take a list of nodes to update, place their values into the excel sheet, and place all new values into the network.
-        pass
+    def do_local_calculations(self, local_layer_name = "", excel_filename = "local_calculations.xlsx", references_filename = "cell_references.yaml" ):
+        # Find independent variables, place their values into the excel sheet, and place all new values into the network.
+        # Determine in degrees of local network nodes
+        in_degrees = self.local_K[local_layer_name].network.in_degree([n for n,v in self.network.nodes(data=True) if v['layer'] == local_layer_name])
+        ind_nodes = {}
+        dep_nodes = {}
 
-    def request_node_value(self):
-        #
-        pass
+        #Sort independent and dependent nodes
+        for n, k_in in in_degrees:
+            if k_in == 0:
+                ind_nodes[n] = self.network.node[n]['node_name']
+            else:
+                dep_nodes[n] = self.network.node[n]['node_name']
 
-    def send_node_value(self, origin_node, destination_node):
-        # copies node value from origin node to destination node
-        pass
+        # Open instance of excel spreadsheet
+        excel_doc = Excel(excel_filename, references_filename)
 
-    def find_negotiated_nodes(self, target_node_name, local_layer_name):
+        # Write independent values to spreadsheet (inputs)
+        for node_id, node_name in ind_nodes.items():
+            excel_doc.write_val(sheet = local_layer_name, cell = excel_doc.cell_references[local_layer_name][node_name], value = self.network.node[node_id]['val'])
+
+        # Read dependent values to network (outputs)
+        for node_id, node_name in dep_nodes.items():
+            self.network.node[node_id]['val'] = excel_doc.read_val(sheet=local_layer_name, cell=excel_doc.cell_references[local_layer_name][node_name])
+
+        # Close and (save?) excel document
+        #excel_doc.save_excel()
+        excel_doc.close()
+
+    def find_negotiated_nodes(self, target_node_id, local_layer_name):
         out_nodes = []
-        target_node = [n for n, data in self.local_K[local_layer_name].network.nodes(data=True) if data['node_name'] == target_node_name]
-        for node in target_node:
-            ancestors = list(nx.ancestors(self.local_K[local_layer_name].network, node))
+        ancestors = list(nx.ancestors(self.local_K[local_layer_name].network, target_node_id))
 
         for node in ancestors:
             if self.local_K[local_layer_name].network.in_degree(node) == 0 and self.local_K[local_layer_name].network.node[node]['data_status'] == 0:
@@ -607,29 +638,90 @@ def save_pickle(dataframe, filename):
 def get_pickle(filename):
     return pd.read_pickle('../results\\{}.pkl'.format(filename))
 
+def get_case_params(filename):
+    if filename:
+        filename = "../inputs\\{}".format(filename)
+        with open(filename, 'r') as stream:
+            data_loaded = yaml.safe_load(stream)
+        return data_loaded
+    else:
+        print('Please input yaml filename.')
+
+def GMT_case_study(case_study_filename):
+
+    case_params = get_case_params(case_study_filename)
+
+    case_name = case_params["name"]
+    layer_sequence = case_params["layer_sequence"]
+    KG_target_nodes = case_params["KG_target_nodes"]
+    excel_filename = case_params["excel_filename"]
+    cell_references_filename = case_params["references_filename"]
+
+    KIF = Integrated_Framework()
+    KIF.build_layered_network()
+
+    for KG_target_node in KG_target_nodes:
+        #for layer in layer_sequence:
+        KIF.add_KG_target_node(KG_target_node)
+        KIF.grow_IG_from_KG(KG_target_node)
+        KIF.time_step += 1
+        local_node_id = KIF.select_KL_node_from_IG(KG_target_node, layer_sequence[0])
+        KIF.time_step += 1
+        negotiated_nodes = KIF.find_negotiated_nodes(local_node_id, layer_sequence[0])
+        for node_id, node_name in negotiated_nodes:
+            KIF.grow_IG_from_KL(node_name, layer_sequence[0])
+        KIF.time_step += 1
+
+        ops_node_ids = []
+        for node_id, node_name in negotiated_nodes:
+            local_node_id = KIF.select_KL_node_from_IG(node_name, layer_sequence[1])
+            ops_node_ids.append((local_node_id, node_name))
+        KIF.time_step += 1
+
+        for ops_node_id, ops_node_name in ops_node_ids:
+            KIF.send_node_value(ops_node_name, layer_sequence[1], ops_node_name, "I_GLOBAL")
+        KIF.time_step += 1
+
+        for ops_node_id, ops_node_name in ops_node_ids:
+            KIF.send_node_value(ops_node_name, "I_GLOBAL", ops_node_name, layer_sequence[0])
+        KIF.time_step += 1
+
+        KIF.do_local_calculations(layer_sequence[0])
+
+        KIF.send_node_value(KG_target_node, layer_sequence[0], KG_target_node, "I_GLOBAL")
+        KIF.time_step += 1
+        KIF.send_node_value(KG_target_node, "I_GLOBAL", KG_target_node, "K_GLOBAL")
+        KIF.time_step += 1
+        df = KIF.create_dataframe()
+        df.to_excel("../results\\{}.xlsx".format(case_name))
+
+        KIF.draw_framework()
+
 ###############################################################################
 def main():
 
-    excel_filename = "local_calculations.xlsx"
-    cell_references_filename = "cell_references.yaml"
+    GMT_case_study("case_study_parameters.yaml")
 
-    KIF = Integrated_Framework()
+    # excel_filename = "local_calculations.xlsx"
+    # cell_references_filename = "cell_references.yaml"
+    #
+    # case_params = get_case_params("case_study_parameters.yaml")
+    # print(case_params)
+    #
+    # KIF = Integrated_Framework()
+    #
+    # KIF.build_layered_network()
+    # KIF.add_KG_target_node("GMT")
+    # KIF.grow_IG_from_KG("GMT")
+    # KIF.grow_IG_from_KL("W_fuel","NAVARCH")
+    # KIF.select_KL_node_from_IG("GMT","NAVARCH")
+    # KIF.create_update_edge("GMT", "NAVARCH", "GMT", "I_GLOBAL")
+    # KIF.create_update_edge("GMT", "NAVARCH", "GMT", "I_GLOBAL")
 
-    KIF.build_layered_network()
-    KIF.add_KG_target_node("GMT")
-    KIF.grow_IG_from_KG("GMT")
-    KIF.grow_IG_from_KL("W_fuel","NAVARCH")
-    KIF.select_KL_node_from_IG("GMT","NAVARCH")
-    KIF.create_update_edge("GMT", "NAVARCH", "GMT", "I_GLOBAL")
-    KIF.create_update_edge("GMT", "NAVARCH", "GMT", "I_GLOBAL")
+    #KIF.do_local_calculations('NAVARCH')
 
-
-    #KIF.calculate_local_values(excel_filename, cell_references_filename, "NAVARCH")
-
-    df = KIF.create_dataframe()
+    #df = KIF.create_dataframe()
     #print(df[df['source_data_status']==1.0])
-
-
     #KIF.draw_framework()
 
 

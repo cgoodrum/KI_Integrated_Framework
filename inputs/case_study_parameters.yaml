@@ -2,15 +2,23 @@
 #   - SEQUENCE OF LAYERS TO BE INVESTIGATED
 #   - INITIAL TARGET NODE IN THE KG LAYER
 
-CASE_NAME:
+name:
   "GMT_CASE"
 
-SEQUENCE:
+layer_sequence:
   [
     "NAVARCH",
     "OPS",
     "DIST"
   ]
 
-INITIAL_KG_TARGET_NODE:
-  "GMT"
+KG_target_nodes:
+  [
+    "GMT"
+  ]
+
+excel_filename:
+  "local_calculations.xlsx"
+
+references_filename:
+  "cell_references.yaml"
