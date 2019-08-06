@@ -75,8 +75,8 @@ DIST:
   pi: B11
   P1: B15
   P2: D15
-  Z1: B16
-  Z2: D16
+  z_fuel: B16
+  z_veh: D16
   V1: B17
   V2: D17
   system_head: B19

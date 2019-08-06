@@ -76,6 +76,9 @@ class Local_KS(object):
 
             node[1]['time'] = 0
 
+            node[1]['val_ts'] = {node[1]['time']:node[1]['val']}
+            node[1]['data_status_ts'] = {node[1]['time']:node[1]['data_status']}
+
         G3 = nx.convert_node_labels_to_integers(G2)
 
         for e in G3.edges(data=False):

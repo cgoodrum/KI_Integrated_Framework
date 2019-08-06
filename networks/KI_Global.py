@@ -4,6 +4,7 @@ import networkx as nx
 import graphviz as gv
 import pydot
 from networkx.drawing.nx_pydot import graphviz_layout
+from networkx.algorithms import bipartite
 import KS_Local as KS_Local
 import math
 from mpl_toolkits.mplot3d import Axes3D
@@ -121,7 +122,9 @@ class Knowledge_Network(object):
             'layer': layer,
             'val': value,
             'data_status': status,
-            'time': self.time_step
+            'time': self.time_step,
+            'val_ts': {self.time_step: value},
+            'data_status_ts': {self.time_step: status}
         }
         return out_dict
 
@@ -317,11 +320,10 @@ class Integrated_Framework(Knowledge_Network):
     def calculate_data_status(self, node_id):
         # Determines the data status of a node based on if it has a value or
         # not.
-        if self.network.node[node]['val']:
-            status = 1.0
+        if self.network.node[node_id]['val']:
+            self.network.node[node_id]['data_status'] = 1.0
         else:
-            status = 0.0
-        return status
+            self.network.node[node_id]['data_status'] = 0.0
 
     def add_KG_target_node(self, name = None, **kwargs):
         if name:
@@ -406,6 +408,17 @@ class Integrated_Framework(Knowledge_Network):
         end_node_id = self.get_node_id(node_name = end_node_name, layer = end_layer)
         self.network.node[end_node_id]['val'] = self.network.node[start_node_id]['val']
         self.network.node[end_node_id]['data_status'] = self.network.node[start_node_id]['data_status'] ## CHECK??
+
+        self.network.node[end_node_id]['val_ts'][self.time_step] = self.network.node[start_node_id]['val']
+        self.network.node[end_node_id]['data_status_ts'][self.time_step] = self.network.node[start_node_id]['data_status']
+
+        if not (end_layer == "I_GLOBAL" or end_layer == "K_GLOBAL"):
+            self.local_K[end_layer].network.node[end_node_id]['val'] = self.network.node[end_node_id]['val']
+            self.local_K[end_layer].network.node[end_node_id]['data_status'] = self.network.node[end_node_id]['data_status']
+
+            self.local_K[end_layer].network.node[end_node_id]['val_ts'][self.time_step] = self.network.node[start_node_id]['val']
+            self.local_K[end_layer].network.node[end_node_id]['data_status_ts'][self.time_step] = self.network.node[start_node_id]['data_status']
+
         self.create_update_edge(start_node_name, start_layer, end_node_name, end_layer)
 
     def get_node_id(self, node_name = None, layer = None, **kwargs):
@@ -543,7 +556,6 @@ class Integrated_Framework(Knowledge_Network):
     def create_dataframe(self):
 
         df = nx.to_pandas_edgelist(self.network)
-
         mapping = {'source': {}, 'target': {}}
         for node_type, node_data in mapping.items():
             for k, v in self.network.nodes(data=True):
@@ -556,7 +568,12 @@ class Integrated_Framework(Knowledge_Network):
             for i, row in df.iterrows():
                 node_data = self.network.node[row[node_type]]
                 new_data = deepcopy(node_data)
+                #print(new_data['val_ts'])
+                del new_data['val_ts']
+                del new_data['data_status_ts']
                 new_data['pos'] = [new_data['pos']]
+                new_data['val'] = node_data['val_ts'][row['time']]
+                new_data['data_status'] = node_data['data_status_ts'][row['time']]
                 temp_df = pd.DataFrame(new_data)
                 temp_df.rename(columns=mapping[node_type], inplace=True)
                 dfs.append(temp_df)
@@ -590,7 +607,10 @@ class Integrated_Framework(Knowledge_Network):
         # Read dependent values to network (outputs)
         for node_id, node_name in dep_nodes.items():
             self.network.node[node_id]['val'] = excel_doc.read_val(sheet=local_layer_name, cell=excel_doc.cell_references[local_layer_name][node_name])
+            self.local_K[local_layer_name].network.node[node_id]['val'] = self.network.node[node_id]['val']
+            self.calculate_data_status(node_id)
 
+        ###NEED TO ADD UPDATES TO DATA STATUSES IN BOTH GLOBAL AND LOCAL LAYERS
         # Close and (save?) excel document
         #excel_doc.save_excel()
         excel_doc.close()
@@ -600,10 +620,47 @@ class Integrated_Framework(Knowledge_Network):
         ancestors = list(nx.ancestors(self.local_K[local_layer_name].network, target_node_id))
 
         for node in ancestors:
-            if self.local_K[local_layer_name].network.in_degree(node) == 0 and self.local_K[local_layer_name].network.node[node]['data_status'] == 0:
+            if self.local_K[local_layer_name].network.in_degree(node) == 0 and self.network.node[node]['data_status'] == 0:
                 out_nodes.append(node)
         out_data = [(n,self.local_K[local_layer_name].network.node[n]['node_name']) for n in out_nodes]
         return out_data
+
+    def create_IG_edge_projections(self, IG_target_node_id, local_layer_name):
+        # Find all between edges from each node in I_GLOBAL. if they share the same local node, then draw an INTERNAL edge in IGLOBAL between the nodes.
+
+        # Find BETWEEN edges from global information to local_layer_name
+        edge_list = []
+        for u,v,k,d in self.network.edges(keys=True, data=True):
+            if d['layer'] == 'BETWEEN':
+                if (self.network.node[u]['layer'] == local_layer_name and self.network.node[v]['layer'] == "I_GLOBAL") or (self.network.node[u]['layer'] == "I_GLOBAL" and self.network.node[v]['layer'] == local_layer_name):
+                    edge_list.append((u,v,k))
+
+        # Create new graph containing these edges
+        B = nx.DiGraph(self.network.edge_subgraph(edge_list))
+
+        # Need to add temporary edges from negotiated_nodes to target_node in IG
+        edges_to_add = []
+        for e in edge_list:
+            if (self.network.node[e[0]]['layer'] == "I_GLOBAL" and self.network.node[e[1]]['layer'] == local_layer_name):
+                edges_to_add.append((e[1], IG_target_node_id))
+
+        B.add_edges_from(edges_to_add)
+
+        # Do bipartite projection
+        IG_projection = bipartite.projected_graph(B, nodes = {n:d for n,d in B.nodes(data=True) if d['layer'] == "I_GLOBAL"})
+
+        # Add projected edges to network
+        for u,v,d in IG_projection.edges(data=True):
+            self.network.add_edge(u,v, layer = "I_GLOBAL", type = "PROJECTION", weight = 1.0, time = self.time_step)
+
+
+    def update_time(self):
+        # Increment time_step by 1, and update all node timeseries in all networks (local and integrated)
+
+        for n in self.network.nodes():
+            self.network.node[n]['val_ts'][self.time_step] = self.network.node[n]['val']
+            self.network.node[n]['data_status_ts'][self.time_step] = self.network.node[n]['data_status']
+        self.time_step += 1
 
 ###############################################################################
 class K_Global(Knowledge_Network):
@@ -664,36 +721,43 @@ def GMT_case_study(case_study_filename):
         #for layer in layer_sequence:
         KIF.add_KG_target_node(KG_target_node)
         KIF.grow_IG_from_KG(KG_target_node)
-        KIF.time_step += 1
+        KIF.update_time()
         local_node_id = KIF.select_KL_node_from_IG(KG_target_node, layer_sequence[0])
-        KIF.time_step += 1
+        KIF.update_time()
         negotiated_nodes = KIF.find_negotiated_nodes(local_node_id, layer_sequence[0])
         for node_id, node_name in negotiated_nodes:
             KIF.grow_IG_from_KL(node_name, layer_sequence[0])
-        KIF.time_step += 1
+        KIF.update_time()
 
         ops_node_ids = []
         for node_id, node_name in negotiated_nodes:
-            local_node_id = KIF.select_KL_node_from_IG(node_name, layer_sequence[1])
-            ops_node_ids.append((local_node_id, node_name))
-        KIF.time_step += 1
+            temp_local_node_id = KIF.select_KL_node_from_IG(node_name, layer_sequence[1])
+            ops_node_ids.append((temp_local_node_id, node_name))
+        KIF.update_time()
 
         for ops_node_id, ops_node_name in ops_node_ids:
             KIF.send_node_value(ops_node_name, layer_sequence[1], ops_node_name, "I_GLOBAL")
-        KIF.time_step += 1
+        KIF.update_time()
 
         for ops_node_id, ops_node_name in ops_node_ids:
             KIF.send_node_value(ops_node_name, "I_GLOBAL", ops_node_name, layer_sequence[0])
-        KIF.time_step += 1
+        KIF.update_time()
 
         KIF.do_local_calculations(layer_sequence[0])
 
         KIF.send_node_value(KG_target_node, layer_sequence[0], KG_target_node, "I_GLOBAL")
-        KIF.time_step += 1
+        IG_target_node_id = KIF.get_node_id(KG_target_node, layer = "I_GLOBAL")
+        KIF.create_IG_edge_projections(IG_target_node_id, local_layer_name = 'NAVARCH')
+        KIF.update_time()
         KIF.send_node_value(KG_target_node, "I_GLOBAL", KG_target_node, "K_GLOBAL")
-        KIF.time_step += 1
+        KIF.update_time()
+
+
+
         df = KIF.create_dataframe()
+        print(df)
         df.to_excel("../results\\{}.xlsx".format(case_name))
+
 
         KIF.draw_framework()
 
