@@ -67,6 +67,13 @@ class Local_KS(object):
             node[1]['node_name'] = node[0]
             node[1]['layer'] = name
 
+            if G2.out_degree(node[0]) == 0:
+                node[1]['type'] = "TARGET"
+            elif G2.in_degree(node[0]) == 0:
+                node[1]['type'] = "NEGOTIATED"
+            else:
+                node[1]['type'] = "INTERMEDIATE"
+
             node[1]['val'] = self.data[node[0]]
 
             if node[1]['val'] is None:
@@ -128,6 +135,7 @@ def main():
     output = {}
     for layer, filename in layer_names.items():
         output[layer] = Local_KS(name=layer, filename=filename, data = yaml_data[layer])
+        #[print(n,d) for n,d in output[layer].network.nodes(data=True)]
 
     return output
 

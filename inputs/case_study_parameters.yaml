@@ -14,8 +14,12 @@ layer_sequence:
 
 KG_target_nodes:
   [
-    "GMT"
+    "GMT",
+    "Trim",
+    "%",
+    #"V_fuel"
   ]
+
 
 excel_filename:
   "local_calculations.xlsx"
