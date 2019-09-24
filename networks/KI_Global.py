@@ -831,8 +831,8 @@ def run_case_study(case_study_filename):
                 # Send new calculated value from layer target node to global information
                 KIF.send_node_value(KG_target_node_name, layer, KG_target_node_name, "I_GLOBAL")
                 # Can change this potentially wqith new node 'type' property
-                IG_target_node_id = KIF.get_node_id(KG_target_node_name, layer = "I_GLOBAL")
-                KIF.create_IG_edge_projections(IG_target_node_id, local_layer_name = layer)
+                #IG_target_node_id = KIF.get_node_id(KG_target_node_name, layer = "I_GLOBAL")
+                #KIF.create_IG_edge_projections(IG_target_node_id, local_layer_name = layer)
                 KIF.update_time()
 
                 # Send global information value back to global knowledge
@@ -854,12 +854,22 @@ def run_case_study(case_study_filename):
     KIF.draw_framework()
     #KIF.draw_layer("I_GLOBAL")
 
+def test_macro():
+
+    filename = "../excel\\test2.xlsm"
+    wb = xw.Book(filename)
+    print(wb)
+    #macro = wb.macro('test_macro')
+    #print(macro)
+
+
 
 ###############################################################################
 def main():
 
     #GMT_case_study("case_study_parameters.yaml")
     run_case_study("case_study_parameters.yaml")
+    #test_macro()
 
 
 if __name__ == '__main__':

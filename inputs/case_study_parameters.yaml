@@ -15,8 +15,10 @@ layer_sequence:
 KG_target_nodes:
   [
     "GMT",
-    "Trim",
-    "%",
+    #"required_power",
+    #"Trim",
+
+    #"%",
     #"V_fuel"
   ]
 
