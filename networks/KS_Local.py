@@ -123,12 +123,17 @@ def get_data(excel_filename, references_filename):
 
 def main():
 
-    yaml_data = get_data("local_calculations.xlsx", "cell_references.yaml")
+    # Import Data from spreadsheets
+    yaml_data = get_data("local_calculations_enhanced.xlsm", "cell_references.yaml")
+    # Change name of OPS Enhanced to just OPS
+    #yaml_data["OPS"] = yaml_data.pop("OPS_Enhanced")
+
+    #[print(n,d) for n,d in yaml_data.items()]
 
     layer_names = {
         "NAVARCH": "KS_navarch.net",
-        "OPS": "KS_operations.net",
-        "DIST":"KS_distribution.net"
+        "OPS": "KS_OPS_enhanced.net",
+        "DIST":"KS_DIST.net"
     }
 
     # Import Gephi Networks into NetworkX format, in Local_KS class structure.

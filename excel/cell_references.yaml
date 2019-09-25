@@ -54,13 +54,46 @@ OPS:
   W_V22: E7
   W_AV8B: E8
   W_SH60: E9
+  radius_F35: F6
+  radius_V22: F7
+  radius_AV8B: F8
+  radius_SH60: F9
+  speed_F35: G6
+  speed_V22: G7
+  speed_AV8B: G8
+  speed_SH60: G9
+  fuel_capacity_F35: H6
+  fuel_capacity_V22: H7
+  fuel_capacity_AV8B: H8
+  fuel_capacity_SH60: H9
+  flight_time_F35: I6
+  flight_time_V22: I7
+  flight_time_AV8B: I8
+  flight_time_SH60: I9
+  V_fuel_F35: J6
+  V_fuel_V22: J7
+  V_fuel_AV8B: J8
+  V_fuel_SH60: J9
+  refuel_time_F35: K6
+  refuel_time_V22: K7
+  refuel_time_AV8B: K8
+  refuel_time_SH60: K9
+  flow_rate_F35: L6
+  flow_rate_V22: L7
+  flow_rate_AV8B: L8
+  flow_rate_SH60: L9
+  x_F35: M6
+  x_V22: M7
+  x_AV8B: M8
+  x_SH60: M9
+  z_F35: N6
+  z_V22: N7
+  z_AV8B: N8
+  z_SH60: N9
   W_veh: C11
   x_veh: B14
   z_veh: C14
   sortie_rate: B17
-  sortie_duration: B18
-  refuel_time: B19
-  max_fuel_rate: B20
   endurance_days: B21
   V_fuel: B23
   vol_flow_rate: B24

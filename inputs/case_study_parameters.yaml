@@ -13,18 +13,27 @@ layer_sequence:
   ]
 
 KG_target_nodes:
-  [
-    "GMT",
-    #"required_power",
-    #"Trim",
+      n_F35: 0
+      n_V22: 0
+      n_AV8B: 0
+      n_SH60: 36
+      GMT:
+      '%':
+      Trim:
+      required_power:
+      pipe_diameter:
 
-    #"%",
-    #"V_fuel"
+KG_sequence:
+  [
+    GMT,
+    Trim,
+    '%',
+    required_power,
+    pipe_diameter
   ]
 
-
 excel_filename:
-  "local_calculations.xlsx"
+  "local_calculations_enhanced.xlsm"
 
 references_filename:
   "cell_references.yaml"

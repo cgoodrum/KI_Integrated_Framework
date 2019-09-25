@@ -1,4 +1,5 @@
 import sys
+import os.path
 sys.path.append('../')
 import networkx as nx
 import graphviz as gv
@@ -53,6 +54,8 @@ class Excel(object):
         self.dest= "../excel\\{}".format(excel_filename)
         self.cell_references = self.import_cell_references("../excel\\{}".format(references_filename))
         self.save_filename = save_filename
+        self.macro = None
+
     # Write value to cell
     def write_val(self,sheet,cell,value):
         self.sheets[sheet].range(cell).value = value
@@ -65,6 +68,9 @@ class Excel(object):
     # Save excel file
     def save_excel(self):
         if self.save_filename:
+            #if os.path.exists("../results\\{}".format(self.save_filename)):
+
+            #else:
             self.wb.save("../results\\{}".format(self.save_filename))
         else:
             self.wb.save(self.dest)
@@ -76,6 +82,10 @@ class Excel(object):
             return data_loaded
         else:
             print('Please input yaml filename.')
+
+    def run_macro(self, macro_name):
+        macro = self.wb.macro(macro_name)
+        macro()
 
     def close(self):
         self.wb.close()
@@ -115,7 +125,7 @@ class Knowledge_Network(object):
         return status
 
     def add_attributes(self, name = None, layer = None, type = None, value = None, pos = (float(),float(),float())):
-        if value:
+        if value != None:
             status = 1.0
         else:
             status = 0.0
@@ -310,6 +320,7 @@ class Integrated_Framework(Knowledge_Network):
         self.global_I = I_Global()
         self.network = self.init_network()
         self.time_step = 1
+        #self.excel_doc = Excel()
 
     def init_network(self):
         G = nx.MultiDiGraph()
@@ -334,7 +345,7 @@ class Integrated_Framework(Knowledge_Network):
     def calculate_data_status(self, node_id):
         # Determines the data status of a node based on if it has a value or
         # not.
-        if self.network.node[node_id]['val']:
+        if self.network.node[node_id]['val'] != None:
             self.network.node[node_id]['data_status'] = 1.0
         else:
             self.network.node[node_id]['data_status'] = 0.0
@@ -364,9 +375,9 @@ class Integrated_Framework(Knowledge_Network):
             if old_node_id == None:
                 print('Error: No KG target node named {}'.format(name))
             # Add to integrated framework
-            self.network.add_node(new_node_id, **self.add_attributes(name = name, layer = 'I_GLOBAL', type = 'TARGET', **kwargs))
+            self.network.add_node(new_node_id, **self.add_attributes(name = name, layer = 'I_GLOBAL', type = 'TARGET', value = self.network.nodes(data=True)[old_node_id]['val'], **kwargs))
             # Add node to global information network
-            self.global_I.network.add_node(new_node_id, **self.add_attributes(name = name, layer = 'I_GLOBAL', type = 'TARGET', **kwargs))
+            self.global_I.network.add_node(new_node_id, **self.add_attributes(name = name, layer = 'I_GLOBAL', type = 'TARGET', value = self.network.nodes(data=True)[old_node_id]['val'], **kwargs))
             # Add edge from KG node to new IG node
             self.network.add_edge(old_node_id, new_node_id, layer = "BETWEEN", type = "CREATE", weight = 1.0, time = self.time_step)
         else:
@@ -473,7 +484,7 @@ class Integrated_Framework(Knowledge_Network):
 
         return self.network
 
-    def draw_framework(self, hoz_offset = 1500, vert_offset = 100, labels = True, color = {"OPS": "green", "DIST": "blue", "NAVARCH": "red", "K_GLOBAL": "grey", "I_GLOBAL": "yellow"}, label_kwargs = {'color': 'black','size': '6'}, edge_kwargs = {'arrowstyle': "-|>", 'lw': 1, 'mutation_scale' : 8, 'color' : 'black',}):
+    def draw_framework(self, hoz_offset = 3000, vert_offset = 100, labels = True, color = {"OPS": "green", "DIST": "blue", "NAVARCH": "red", "K_GLOBAL": "grey", "I_GLOBAL": "yellow"}, label_kwargs = {'color': 'black','size': '6'}, edge_kwargs = {'arrowstyle': "-|>", 'lw': 1, 'mutation_scale' : 8, 'color' : 'black',}):
 
         # update the node positions from the GlobalK and GlobalI networks
 
@@ -620,7 +631,7 @@ class Integrated_Framework(Knowledge_Network):
         df_out = pd.concat([df,temp_df],axis=1, sort=False)
         return df_out
 
-    def do_local_calculations(self, local_layer_name = "", excel_filename = "local_calculations.xlsx", references_filename = "cell_references.yaml" ):
+    def do_local_calculations(self, local_layer_name = "", excel_filename = "", references_filename = "cell_references.yaml", macro_name = None ):
         # Find independent variables, place their values into the excel sheet, and place all new values into the network.
         # Determine in degrees of local network nodes
         in_degrees = self.local_K[local_layer_name].network.in_degree([n for n,v in self.network.nodes(data=True) if v['layer'] == local_layer_name])
@@ -635,11 +646,21 @@ class Integrated_Framework(Knowledge_Network):
                 dep_nodes[n] = self.network.node[n]['node_name']
 
         # Open instance of excel spreadsheet
-        excel_doc = Excel(excel_filename, references_filename, save_filename = "local_calculations_final_state.xlsx")
+        excel_doc = Excel(excel_filename, references_filename, save_filename = "local_calculations_enhanced_final_state.xlsm")
 
         # Write independent values to spreadsheet (inputs)
         for node_id, node_name in ind_nodes.items():
             excel_doc.write_val(sheet = local_layer_name, cell = excel_doc.cell_references[local_layer_name][node_name], value = self.network.node[node_id]['val'])
+            #self.local_K[local_layer_name].network.node[node_id]['val'] = self.network.node[node_id]['val']
+
+        # Run macros (if specified)
+        if macro_name != None:
+            excel_doc.run_macro(macro_name)
+            # Read independent variables back into network post-macro
+            for node_id, node_name in ind_nodes.items():
+                self.network.node[node_id]['val'] = excel_doc.read_val(sheet=local_layer_name, cell=excel_doc.cell_references[local_layer_name][node_name])
+                self.local_K[local_layer_name].network.node[node_id]['val'] = self.network.node[node_id]['val']
+                self.calculate_data_status(node_id)
 
         # Read dependent values to network (outputs)
         for node_id, node_name in dep_nodes.items():
@@ -655,7 +676,6 @@ class Integrated_Framework(Knowledge_Network):
     def find_negotiated_nodes(self, target_node_id, local_layer_name):
         out_nodes = []
         ancestors = list(nx.ancestors(self.local_K[local_layer_name].network, target_node_id))
-
         for node in ancestors:
             if self.local_K[local_layer_name].network.in_degree(node) == 0 and self.network.node[node]['data_status'] == 0:
                 out_nodes.append(node)
@@ -854,21 +874,139 @@ def run_case_study(case_study_filename):
     KIF.draw_framework()
     #KIF.draw_layer("I_GLOBAL")
 
-def test_macro():
+def run_case_study_2(case_study_filename):
 
-    filename = "../excel\\test2.xlsm"
-    wb = xw.Book(filename)
-    print(wb)
-    #macro = wb.macro('test_macro')
-    #print(macro)
+    case_params = get_case_params(case_study_filename)
+
+    case_name = case_params["name"]
+    layer_sequence = case_params["layer_sequence"]
+    KG_target_nodes = case_params["KG_target_nodes"]
+    KG_unknown_target_node_sequence = case_params["KG_sequence"]
+    excel_filename = case_params["excel_filename"]
+    cell_references_filename = case_params["references_filename"]
+
+    KIF = Integrated_Framework()
+    KIF.build_layered_network()
+
+    # Add all target nodes to Global K
+    for KG_target_node_name, KG_target_node_val in KG_target_nodes.items():
+        KIF.add_KG_target_node(KG_target_node_name, **{"value": KG_target_node_val})
+    KIF.update_time()
+
+    # Grow Global I from Global K
+    for KG_target_node_name, KG_target_node_val in KG_target_nodes.items():
+        KIF.grow_IG_from_KG(KG_target_node_name)
+        KIF.global_I.target_node.append(KIF.get_node_id(KG_target_node_name, layer = "I_GLOBAL"))
+    KIF.update_time()
+
+    # Start with selecting GMT
+
+    # for KG_target_node_name in KG_unknown_target_node_sequence:
+    #     local_node_id = KIF.select_KL_node_from_IG(KG_target_node_name, layer)
+    #     negotiated_nodes = KIF.find_negotiated_nodes(local_node_id, layer)
+
+    local_node_id = KIF.select_KL_node_from_IG("GMT", "NAVARCH")
+    #KIF.do_local_calculations(local_layer_name = "NAVARCH", excel_filename = excel_filename, macro_name = "Calculate_NAVARCH_z_fuel")
+    #KIF.update_time()
+    negotiated_nodes = KIF.find_negotiated_nodes(local_node_id, "NAVARCH")
+    #print(negotiated_nodes)
+
+    # Grow IG from KL
+    IG_negotiated_nodes = []
+    for node_id, node_name in negotiated_nodes:
+        new_node_id = KIF.grow_IG_from_KL(node_name, "NAVARCH")
+        IG_negotiated_nodes.append(new_node_id)
+    KIF.update_time()
+
+    # Select nodes in OPS from newly grown IG
+    # Find nodes in other local structures to populate IG node values
+    layers_to_search = {lay:KIF.local_K[lay].network for lay in layer_sequence if lay == "OPS"}
+    found_nodes = {}
+    for lay, network in layers_to_search.items():
+        local_nodes = {node_id:node_data for node_id, node_data in network.nodes(data=True)}
+        local_node_names = [node_data['node_name'] for node_id, node_data in local_nodes.items()]
+        for IG_node_id, IG_node_name in IG_negotiated_nodes:
+            if IG_node_name in local_node_names:
+                # get node data for local node
+                found_nodes.update({node_id:node_data for node_id, node_data in local_nodes.items() if node_data['node_name'] == IG_node_name})
+
+    for IG_node, IG_node_data in found_nodes.items():
+        if IG_node_data['node_name'] != "z_fuel":
+            local_node_id = KIF.select_KL_node_from_IG(IG_node_data['node_name'], "OPS")
+    KIF.update_time()
 
 
+    # Initiate Values in OPS LAYER
+    for KG_target_node_name, KG_target_node_val in KG_target_nodes.items():
+        if KG_target_node_val != None:
+            local_node_id = KIF.select_KL_node_from_IG(KG_target_node_name, "OPS")
+            KIF.send_node_value(start_node_name=KG_target_node_name, start_layer="I_GLOBAL",end_node_name=KG_target_node_name, end_layer="OPS")
+
+    KIF.do_local_calculations(local_layer_name = "OPS", excel_filename = excel_filename, macro_name = "Calculate_OPS_z")
+    KIF.update_time()
+
+    # Send the values from the selected OPS nodes back to Global information
+    for found_node_id, found_node_data in found_nodes.items():
+        KIF.send_node_value(found_node_data['node_name'], found_node_data['layer'], found_node_data['node_name'], "I_GLOBAL") ## POTENTIAL ISSUE
+    KIF.update_time()
+
+    # Send the values from the global information layer back to the original layers
+    for node_id, node_name in negotiated_nodes:
+        KIF.send_node_value(node_name, "I_GLOBAL", node_name, "NAVARCH")
+    KIF.do_local_calculations(local_layer_name = "NAVARCH", excel_filename = excel_filename, macro_name = "Calculate_NAVARCH_z_fuel")
+    KIF.update_time()
+
+    # Send GMT Value to IG
+    KIF.send_node_value("GMT", "NAVARCH", "GMT", "I_GLOBAL")
+    KIF.update_time()
+
+    # NEXT DO TRIM
+
+    # Select Trim node in NAVARCH layer
+    local_node_id = KIF.select_KL_node_from_IG("Trim", "NAVARCH")
+    KIF.update_time()
+
+    # Do the calculations in the NAVARCH LAYER
+    KIF.do_local_calculations(local_layer_name = "NAVARCH", excel_filename = excel_filename, macro_name = "Calculate_Trim")
+    KIF.update_time()
+
+    # Communicate the values to the IG layer
+    negotiated_nodes = KIF.find_negotiated_nodes(local_node_id, "NAVARCH")
+
+
+    # Send updated Values to OPS
+
+    # Have OPS do their calculation to select the x,v for each vehicle. If exact solution found, done. Else, transmit new val to IG, then to NAVARCH
+
+    # NEXT DO %
+
+    # Get Value from NAVARCH and communicate to IG.
+
+    # NEXT DO REQUIRED POWER
+
+    # Identify node in DIST and do calculation by getting values from IG
+
+
+
+
+    #[print(n,d) for n,d in KIF.network.nodes(data=True) if d['layer'] == "OPS"]
+    # Find local nodes to transfer to IG
+
+
+    #[print(n,d) for n,d in KIF.network.nodes(data=True) if d['layer'] == "I_GLOBAL"]
+    # print("---------------------NAVARCH--------------------")
+    # [print(d['node_name'], d['val'], d['val_ts']) for n,d in KIF.local_K['NAVARCH'].network.nodes(data=True)]
+    # print("-----------------------OPS----------------------")
+    # [print(d['node_name'], d['val'], d['val_ts']) for n,d in KIF.local_K['OPS'].network.nodes(data=True)]
+
+    #KIF.draw_framework()
+    #KIF.draw_layer("I_GLOBAL")
 
 ###############################################################################
 def main():
 
     #GMT_case_study("case_study_parameters.yaml")
-    run_case_study("case_study_parameters.yaml")
+    run_case_study_2("case_study_parameters.yaml")
     #test_macro()
 
 
