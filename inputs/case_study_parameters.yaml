@@ -3,7 +3,7 @@
 #   - INITIAL TARGET NODE IN THE KG LAYER
 
 name:
-  "GMT_CASE"
+  "SIMPLE_CASE"
 
 layer_sequence:
   [
