@@ -121,20 +121,34 @@ def get_data(excel_filename, references_filename):
     excel_doc.close()
     return data_dict
 
+def get_case_params(filename):
+    if filename:
+        filename = "../inputs\\{}".format(filename)
+        with open(filename, 'r') as stream:
+            data_loaded = yaml.safe_load(stream)
+        return data_loaded
+    else:
+        print('Please input yaml filename.')
+
 def main():
 
+    # Import case study file
+
+    case_params = get_case_params("hard_case_study_parameters.yaml")
+    #case_params = get_case_params("simple_case_study_parameters.yaml")
+
+    layer_names = case_params["layer_networks"]
+    excel_filename = case_params["excel_filename"]
+    cell_references_filename = case_params["references_filename"]
+
     # Import Data from spreadsheets
-    yaml_data = get_data("local_calculations_enhanced.xlsm", "cell_references.yaml")
-    # Change name of OPS Enhanced to just OPS
-    #yaml_data["OPS"] = yaml_data.pop("OPS_Enhanced")
+    yaml_data = get_data(excel_filename, cell_references_filename)
 
-    #[print(n,d) for n,d in yaml_data.items()]
-
-    layer_names = {
-        "NAVARCH": "KS_navarch.net",
-        "OPS": "KS_OPS_enhanced.net",
-        "DIST":"KS_DIST.net"
-    }
+    # layer_names = {
+    #     "NAVARCH": "KS_navarch.net",
+    #     "OPS": "KS_OPS_enhanced_1_Veh.net",
+    #     "DIST":"KS_DIST.net"
+    # }
 
     # Import Gephi Networks into NetworkX format, in Local_KS class structure.
     output = {}

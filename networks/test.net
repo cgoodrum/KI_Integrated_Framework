@@ -1,0 +1,357 @@
+*vertices 133
+1 0 0.0 0.0 ellipse node_name LWL layer NAVARCH type NEGOTIATED
+2 1 0.0 0.0 ellipse node_name B layer NAVARCH type NEGOTIATED
+3 2 0.0 0.0 ellipse node_name T layer NAVARCH type NEGOTIATED
+4 3 0.0 0.0 ellipse node_name Cb layer NAVARCH type NEGOTIATED
+5 4 0.0 0.0 ellipse node_name BMT layer NAVARCH type NEGOTIATED
+6 5 0.0 0.0 ellipse node_name BML layer NAVARCH type NEGOTIATED
+7 6 0.0 0.0 ellipse node_name KB layer NAVARCH type NEGOTIATED
+8 7 0.0 0.0 ellipse node_name LCB layer NAVARCH type NEGOTIATED
+9 8 0.0 0.0 ellipse node_name V layer NAVARCH type INTERMEDIATE
+10 9 0.0 0.0 ellipse node_name density_SW layer NAVARCH type NEGOTIATED
+11 10 0.0 0.0 ellipse node_name W_LS layer NAVARCH type NEGOTIATED
+12 11 0.0 0.0 ellipse node_name W_misc layer NAVARCH type NEGOTIATED
+13 12 0.0 0.0 ellipse node_name W_veh layer NAVARCH type NEGOTIATED
+14 13 0.0 0.0 ellipse node_name W_fuel layer NAVARCH type INTERMEDIATE
+15 14 0.0 0.0 ellipse node_name W_DWT layer NAVARCH type INTERMEDIATE
+16 15 0.0 0.0 ellipse node_name W_tot layer NAVARCH type INTERMEDIATE
+17 16 0.0 0.0 ellipse node_name % layer NAVARCH type TARGET
+18 17 0.0 0.0 ellipse node_name GMT layer NAVARCH type TARGET
+19 18 0.0 0.0 ellipse node_name GML layer NAVARCH type INTERMEDIATE
+20 19 0.0 0.0 ellipse node_name Trim layer NAVARCH type TARGET
+21 20 0.0 0.0 ellipse node_name density_JP5 layer NAVARCH type NEGOTIATED
+22 21 0.0 0.0 ellipse node_name Disp layer NAVARCH type INTERMEDIATE
+23 22 0.0 0.0 ellipse node_name x_misc layer NAVARCH type NEGOTIATED
+24 23 0.0 0.0 ellipse node_name z_misc layer NAVARCH type NEGOTIATED
+25 24 0.0 0.0 ellipse node_name x_veh layer NAVARCH type NEGOTIATED
+26 25 0.0 0.0 ellipse node_name z_veh layer NAVARCH type NEGOTIATED
+27 26 0.0 0.0 ellipse node_name x_fuel layer NAVARCH type NEGOTIATED
+28 27 0.0 0.0 ellipse node_name z_fuel layer NAVARCH type NEGOTIATED
+29 28 0.0 0.0 ellipse node_name x_DWT layer NAVARCH type INTERMEDIATE
+30 29 0.0 0.0 ellipse node_name z_DWT layer NAVARCH type INTERMEDIATE
+31 30 0.0 0.0 ellipse node_name x_tot layer NAVARCH type INTERMEDIATE
+32 31 0.0 0.0 ellipse node_name z_tot layer NAVARCH type INTERMEDIATE
+33 32 0.0 0.0 ellipse node_name x_LS layer NAVARCH type NEGOTIATED
+34 33 0.0 0.0 ellipse node_name z_LS layer NAVARCH type NEGOTIATED
+35 34 0.0 0.0 ellipse node_name V_fuel layer NAVARCH type NEGOTIATED
+36 35 0.0 0.0 ellipse node_name flow_rate_F35 layer OPS type INTERMEDIATE
+37 36 0.0 0.0 ellipse node_name W_V22 layer OPS type INTERMEDIATE
+38 37 0.0 0.0 ellipse node_name W_AV8B layer OPS type INTERMEDIATE
+39 38 0.0 0.0 ellipse node_name W_SH60 layer OPS type INTERMEDIATE
+40 39 0.0 0.0 ellipse node_name n_F35 layer OPS type NEGOTIATED
+41 40 0.0 0.0 ellipse node_name n_V22 layer OPS type NEGOTIATED
+42 41 0.0 0.0 ellipse node_name n_AV8B layer OPS type NEGOTIATED
+43 42 0.0 0.0 ellipse node_name n_SH60 layer OPS type NEGOTIATED
+44 43 0.0 0.0 ellipse node_name w_F35 layer OPS type NEGOTIATED
+45 44 0.0 0.0 ellipse node_name w_V22 layer OPS type NEGOTIATED
+46 45 0.0 0.0 ellipse node_name w_AV8B layer OPS type NEGOTIATED
+47 46 0.0 0.0 ellipse node_name w_SH60 layer OPS type NEGOTIATED
+48 47 0.0 0.0 ellipse node_name W_veh layer OPS type INTERMEDIATE
+49 48 0.0 0.0 ellipse node_name x_veh layer OPS type TARGET
+50 49 0.0 0.0 ellipse node_name z_veh layer OPS type TARGET
+51 50 0.0 0.0 ellipse node_name sortie_rate layer OPS type NEGOTIATED
+52 51 0.0 0.0 ellipse node_name W_F35 layer OPS type INTERMEDIATE
+53 52 0.0 0.0 ellipse node_name fuel_capacity_SH60 layer OPS type NEGOTIATED
+54 53 0.0 0.0 ellipse node_name fuel_capacity_F35 layer OPS type NEGOTIATED
+55 54 0.0 0.0 ellipse node_name endurance_days layer OPS type NEGOTIATED
+56 55 0.0 0.0 ellipse node_name V_fuel layer OPS type TARGET
+57 56 0.0 0.0 ellipse node_name SFC_F35 layer OPS type INTERMEDIATE
+58 57 0.0 0.0 ellipse node_name SFC_V22 layer OPS type INTERMEDIATE
+59 58 0.0 0.0 ellipse node_name SFC_AV8B layer OPS type INTERMEDIATE
+60 59 0.0 0.0 ellipse node_name SFC_SH60 layer OPS type INTERMEDIATE
+61 60 0.0 0.0 ellipse node_name density_JP5 layer OPS type NEGOTIATED
+62 61 0.0 0.0 ellipse node_name vol_flow_rate layer OPS type TARGET
+63 62 0.0 0.0 ellipse node_name flow_rate_V22 layer OPS type INTERMEDIATE
+64 63 0.0 0.0 ellipse node_name flow_rate_AV8B layer OPS type INTERMEDIATE
+65 64 0.0 0.0 ellipse node_name flow_rate_SH60 layer OPS type INTERMEDIATE
+66 65 0.0 0.0 ellipse node_name fuel_capacity_AV8B layer OPS type NEGOTIATED
+67 66 0.0 0.0 ellipse node_name fuel_capacity_V22 layer OPS type NEGOTIATED
+68 67 0.0 0.0 ellipse node_name radius_F35 layer OPS type NEGOTIATED
+69 68 0.0 0.0 ellipse node_name radius_V22 layer OPS type NEGOTIATED
+70 69 0.0 0.0 ellipse node_name radius_AV8B layer OPS type NEGOTIATED
+71 70 0.0 0.0 ellipse node_name radius_SH60 layer OPS type NEGOTIATED
+72 71 0.0 0.0 ellipse node_name speed_F35 layer OPS type NEGOTIATED
+73 72 0.0 0.0 ellipse node_name speed_V22 layer OPS type NEGOTIATED
+74 73 0.0 0.0 ellipse node_name speed_AV8B layer OPS type NEGOTIATED
+75 74 0.0 0.0 ellipse node_name speed_SH60 layer OPS type NEGOTIATED
+76 75 0.0 0.0 ellipse node_name flight_time_F35 layer OPS type INTERMEDIATE
+77 76 0.0 0.0 ellipse node_name flight_time_V22 layer OPS type INTERMEDIATE
+78 77 0.0 0.0 ellipse node_name flight_time_AV8B layer OPS type INTERMEDIATE
+79 78 0.0 0.0 ellipse node_name flight_time_SH60 layer OPS type INTERMEDIATE
+80 79 0.0 0.0 ellipse node_name V_fuel_F35 layer OPS type INTERMEDIATE
+81 80 0.0 0.0 ellipse node_name V_fuel_V22 layer OPS type INTERMEDIATE
+82 81 0.0 0.0 ellipse node_name V_fuel_AV8B layer OPS type INTERMEDIATE
+83 82 0.0 0.0 ellipse node_name V_fuel_SH60 layer OPS type INTERMEDIATE
+84 83 0.0 0.0 ellipse node_name x_F35 layer OPS type NEGOTIATED
+85 84 0.0 0.0 ellipse node_name z_F35 layer OPS type NEGOTIATED
+86 85 0.0 0.0 ellipse node_name x_V22 layer OPS type NEGOTIATED
+87 86 0.0 0.0 ellipse node_name z_V22 layer OPS type NEGOTIATED
+88 87 0.0 0.0 ellipse node_name x_AV8B layer OPS type NEGOTIATED
+89 88 0.0 0.0 ellipse node_name z_AV8B layer OPS type NEGOTIATED
+90 89 0.0 0.0 ellipse node_name x_SH60 layer OPS type NEGOTIATED
+91 90 0.0 0.0 ellipse node_name z_SH60 layer OPS type NEGOTIATED
+92 91 0.0 0.0 ellipse node_name refuel_time_F35 layer OPS type INTERMEDIATE
+93 92 0.0 0.0 ellipse node_name refuel_time_V22 layer OPS type INTERMEDIATE
+94 93 0.0 0.0 ellipse node_name refuel_time_AV8B layer OPS type INTERMEDIATE
+95 94 0.0 0.0 ellipse node_name refuel_time_SH60 layer OPS type INTERMEDIATE
+96 95 0.0 0.0 ellipse node_name density_JP5 layer DIST type NEGOTIATED
+97 96 0.0 0.0 ellipse node_name g layer DIST type NEGOTIATED
+98 97 0.0 0.0 ellipse node_name pipe_diameter layer DIST type NEGOTIATED
+99 98 0.0 0.0 ellipse node_name vol_flow_rate layer DIST type NEGOTIATED
+100 99 0.0 0.0 ellipse node_name specific_weight layer DIST type INTERMEDIATE
+101 100 0.0 0.0 ellipse node_name pi layer DIST type NEGOTIATED
+102 101 0.0 0.0 ellipse node_name P1 layer DIST type NEGOTIATED
+103 102 0.0 0.0 ellipse node_name P2 layer DIST type NEGOTIATED
+104 103 0.0 0.0 ellipse node_name z_fuel layer DIST type NEGOTIATED
+105 104 0.0 0.0 ellipse node_name z_veh layer DIST type NEGOTIATED
+106 105 0.0 0.0 ellipse node_name V1 layer DIST type NEGOTIATED
+107 106 0.0 0.0 ellipse node_name V2 layer DIST type INTERMEDIATE
+108 107 0.0 0.0 ellipse node_name system_head layer DIST type INTERMEDIATE
+109 108 0.0 0.0 ellipse node_name required_power layer DIST type TARGET
+110 109 0.0 0.0 ellipse node_name n_F35 layer K_GLOBAL type TARGET
+111 110 0.0 0.0 ellipse node_name n_V22 layer K_GLOBAL type TARGET
+112 111 0.0 0.0 ellipse node_name n_AV8B layer K_GLOBAL type TARGET
+113 112 0.0 0.0 ellipse node_name n_SH60 layer K_GLOBAL type TARGET
+114 113 0.0 0.0 ellipse node_name GMT layer K_GLOBAL type TARGET
+115 114 0.0 0.0 ellipse node_name % layer K_GLOBAL type TARGET
+116 115 0.0 0.0 ellipse node_name Trim layer K_GLOBAL type TARGET
+117 116 0.0 0.0 ellipse node_name required_power layer K_GLOBAL type TARGET
+118 117 0.0 0.0 ellipse node_name pipe_diameter layer K_GLOBAL type TARGET
+119 118 0.0 0.0 ellipse node_name n_F35 layer I_GLOBAL type TARGET
+120 119 0.0 0.0 ellipse node_name n_V22 layer I_GLOBAL type TARGET
+121 120 0.0 0.0 ellipse node_name n_AV8B layer I_GLOBAL type TARGET
+122 121 0.0 0.0 ellipse node_name n_SH60 layer I_GLOBAL type TARGET
+123 122 0.0 0.0 ellipse node_name GMT layer I_GLOBAL type TARGET
+124 123 0.0 0.0 ellipse node_name % layer I_GLOBAL type TARGET
+125 124 0.0 0.0 ellipse node_name Trim layer I_GLOBAL type TARGET
+126 125 0.0 0.0 ellipse node_name required_power layer I_GLOBAL type TARGET
+127 126 0.0 0.0 ellipse node_name pipe_diameter layer I_GLOBAL type TARGET
+128 127 0.0 0.0 ellipse node_name W_veh layer I_GLOBAL type NEGOTIATED
+129 128 0.0 0.0 ellipse node_name z_veh layer I_GLOBAL type NEGOTIATED
+130 129 0.0 0.0 ellipse node_name z_fuel layer I_GLOBAL type NEGOTIATED
+131 130 0.0 0.0 ellipse node_name V_fuel layer I_GLOBAL type NEGOTIATED
+132 131 0.0 0.0 ellipse node_name x_veh layer I_GLOBAL type NEGOTIATED
+133 132 0.0 0.0 ellipse node_name vol_flow_rate layer I_GLOBAL type NEGOTIATED
+*arcs
+1 9 1.0 layer NAVARCH type INTERNAL
+1 20 1.0 layer NAVARCH type INTERNAL
+2 9 1.0 layer NAVARCH type INTERNAL
+3 9 1.0 layer NAVARCH type INTERNAL
+4 9 1.0 layer NAVARCH type INTERNAL
+5 18 1.0 layer NAVARCH type INTERNAL
+6 19 1.0 layer NAVARCH type INTERNAL
+7 18 1.0 layer NAVARCH type INTERNAL
+7 19 1.0 layer NAVARCH type INTERNAL
+8 20 1.0 layer NAVARCH type INTERNAL
+9 22 1.0 layer NAVARCH type INTERNAL
+10 22 1.0 layer NAVARCH type INTERNAL
+11 16 1.0 layer NAVARCH type INTERNAL
+11 32 1.0 layer NAVARCH type INTERNAL
+11 31 1.0 layer NAVARCH type INTERNAL
+12 15 1.0 layer NAVARCH type INTERNAL
+12 29 1.0 layer NAVARCH type INTERNAL
+12 30 1.0 layer NAVARCH type INTERNAL
+13 15 1.0 layer NAVARCH type INTERNAL
+13 29 1.0 layer NAVARCH type INTERNAL
+13 30 1.0 layer NAVARCH type INTERNAL
+13 128 1.0 layer BETWEEN type CREATE
+14 15 1.0 layer NAVARCH type INTERNAL
+14 29 1.0 layer NAVARCH type INTERNAL
+14 30 1.0 layer NAVARCH type INTERNAL
+15 16 1.0 layer NAVARCH type INTERNAL
+15 32 1.0 layer NAVARCH type INTERNAL
+15 31 1.0 layer NAVARCH type INTERNAL
+15 29 1.0 layer NAVARCH type INTERNAL
+15 30 1.0 layer NAVARCH type INTERNAL
+16 17 1.0 layer NAVARCH type INTERNAL
+16 32 1.0 layer NAVARCH type INTERNAL
+16 31 1.0 layer NAVARCH type INTERNAL
+17 124 1.0 layer BETWEEN type UPDATE
+18 123 1.0 layer BETWEEN type UPDATE
+19 20 1.0 layer NAVARCH type INTERNAL
+20 125 1.0 layer BETWEEN type UPDATE
+21 14 1.0 layer NAVARCH type INTERNAL
+22 17 1.0 layer NAVARCH type INTERNAL
+23 29 1.0 layer NAVARCH type INTERNAL
+24 30 1.0 layer NAVARCH type INTERNAL
+25 29 1.0 layer NAVARCH type INTERNAL
+25 132 1.0 layer BETWEEN type UPDATE
+26 30 1.0 layer NAVARCH type INTERNAL
+26 129 1.0 layer BETWEEN type CREATE
+27 29 1.0 layer NAVARCH type INTERNAL
+28 30 1.0 layer NAVARCH type INTERNAL
+28 130 1.0 layer BETWEEN type CREATE
+28 130 1.0 layer BETWEEN type UPDATE
+29 31 1.0 layer NAVARCH type INTERNAL
+30 32 1.0 layer NAVARCH type INTERNAL
+31 20 1.0 layer NAVARCH type INTERNAL
+32 18 1.0 layer NAVARCH type INTERNAL
+32 19 1.0 layer NAVARCH type INTERNAL
+33 31 1.0 layer NAVARCH type INTERNAL
+34 32 1.0 layer NAVARCH type INTERNAL
+35 14 1.0 layer NAVARCH type INTERNAL
+35 131 1.0 layer BETWEEN type CREATE
+36 62 1.0 layer OPS type INTERNAL
+37 48 1.0 layer OPS type INTERNAL
+37 49 1.0 layer OPS type INTERNAL
+37 50 1.0 layer OPS type INTERNAL
+38 48 1.0 layer OPS type INTERNAL
+38 49 1.0 layer OPS type INTERNAL
+38 50 1.0 layer OPS type INTERNAL
+39 48 1.0 layer OPS type INTERNAL
+39 49 1.0 layer OPS type INTERNAL
+39 50 1.0 layer OPS type INTERNAL
+40 80 1.0 layer OPS type INTERNAL
+40 52 1.0 layer OPS type INTERNAL
+41 81 1.0 layer OPS type INTERNAL
+41 37 1.0 layer OPS type INTERNAL
+42 82 1.0 layer OPS type INTERNAL
+42 38 1.0 layer OPS type INTERNAL
+43 83 1.0 layer OPS type INTERNAL
+43 39 1.0 layer OPS type INTERNAL
+44 52 1.0 layer OPS type INTERNAL
+45 37 1.0 layer OPS type INTERNAL
+46 38 1.0 layer OPS type INTERNAL
+47 39 1.0 layer OPS type INTERNAL
+48 49 1.0 layer OPS type INTERNAL
+48 50 1.0 layer OPS type INTERNAL
+48 128 1.0 layer BETWEEN type UPDATE
+49 132 1.0 layer BETWEEN type CREATE
+50 129 1.0 layer BETWEEN type UPDATE
+51 92 1.0 layer OPS type INTERNAL
+51 93 1.0 layer OPS type INTERNAL
+51 95 1.0 layer OPS type INTERNAL
+51 94 1.0 layer OPS type INTERNAL
+51 80 1.0 layer OPS type INTERNAL
+51 81 1.0 layer OPS type INTERNAL
+51 82 1.0 layer OPS type INTERNAL
+51 83 1.0 layer OPS type INTERNAL
+52 48 1.0 layer OPS type INTERNAL
+52 49 1.0 layer OPS type INTERNAL
+52 50 1.0 layer OPS type INTERNAL
+53 65 1.0 layer OPS type INTERNAL
+53 60 1.0 layer OPS type INTERNAL
+54 36 1.0 layer OPS type INTERNAL
+54 57 1.0 layer OPS type INTERNAL
+55 80 1.0 layer OPS type INTERNAL
+55 81 1.0 layer OPS type INTERNAL
+55 82 1.0 layer OPS type INTERNAL
+55 83 1.0 layer OPS type INTERNAL
+56 131 1.0 layer BETWEEN type UPDATE
+57 80 1.0 layer OPS type INTERNAL
+58 81 1.0 layer OPS type INTERNAL
+59 82 1.0 layer OPS type INTERNAL
+60 83 1.0 layer OPS type INTERNAL
+61 80 1.0 layer OPS type INTERNAL
+61 57 1.0 layer OPS type INTERNAL
+61 58 1.0 layer OPS type INTERNAL
+61 60 1.0 layer OPS type INTERNAL
+61 59 1.0 layer OPS type INTERNAL
+61 81 1.0 layer OPS type INTERNAL
+61 82 1.0 layer OPS type INTERNAL
+61 83 1.0 layer OPS type INTERNAL
+62 133 1.0 layer BETWEEN type UPDATE
+63 62 1.0 layer OPS type INTERNAL
+64 62 1.0 layer OPS type INTERNAL
+65 62 1.0 layer OPS type INTERNAL
+66 64 1.0 layer OPS type INTERNAL
+66 59 1.0 layer OPS type INTERNAL
+67 63 1.0 layer OPS type INTERNAL
+67 58 1.0 layer OPS type INTERNAL
+68 76 1.0 layer OPS type INTERNAL
+69 77 1.0 layer OPS type INTERNAL
+70 78 1.0 layer OPS type INTERNAL
+71 79 1.0 layer OPS type INTERNAL
+72 76 1.0 layer OPS type INTERNAL
+73 77 1.0 layer OPS type INTERNAL
+74 78 1.0 layer OPS type INTERNAL
+75 79 1.0 layer OPS type INTERNAL
+76 92 1.0 layer OPS type INTERNAL
+76 80 1.0 layer OPS type INTERNAL
+76 57 1.0 layer OPS type INTERNAL
+77 93 1.0 layer OPS type INTERNAL
+77 58 1.0 layer OPS type INTERNAL
+77 81 1.0 layer OPS type INTERNAL
+78 94 1.0 layer OPS type INTERNAL
+78 59 1.0 layer OPS type INTERNAL
+78 82 1.0 layer OPS type INTERNAL
+79 95 1.0 layer OPS type INTERNAL
+79 60 1.0 layer OPS type INTERNAL
+79 83 1.0 layer OPS type INTERNAL
+80 56 1.0 layer OPS type INTERNAL
+81 56 1.0 layer OPS type INTERNAL
+82 56 1.0 layer OPS type INTERNAL
+83 56 1.0 layer OPS type INTERNAL
+84 49 1.0 layer OPS type INTERNAL
+85 50 1.0 layer OPS type INTERNAL
+86 49 1.0 layer OPS type INTERNAL
+87 50 1.0 layer OPS type INTERNAL
+88 49 1.0 layer OPS type INTERNAL
+89 50 1.0 layer OPS type INTERNAL
+90 49 1.0 layer OPS type INTERNAL
+91 50 1.0 layer OPS type INTERNAL
+92 36 1.0 layer OPS type INTERNAL
+93 63 1.0 layer OPS type INTERNAL
+94 64 1.0 layer OPS type INTERNAL
+95 65 1.0 layer OPS type INTERNAL
+96 100 1.0 layer DIST type INTERNAL
+97 100 1.0 layer DIST type INTERNAL
+98 107 1.0 layer DIST type INTERNAL
+98 127 1.0 layer BETWEEN type UPDATE
+99 109 1.0 layer DIST type INTERNAL
+99 107 1.0 layer DIST type INTERNAL
+99 133 1.0 layer BETWEEN type CREATE
+100 108 1.0 layer DIST type INTERNAL
+100 109 1.0 layer DIST type INTERNAL
+101 107 1.0 layer DIST type INTERNAL
+102 108 1.0 layer DIST type INTERNAL
+103 108 1.0 layer DIST type INTERNAL
+104 108 1.0 layer DIST type INTERNAL
+104 130 1.0 layer BETWEEN type SELECT
+105 108 1.0 layer DIST type INTERNAL
+105 129 1.0 layer BETWEEN type SELECT
+106 108 1.0 layer DIST type INTERNAL
+107 108 1.0 layer DIST type INTERNAL
+108 109 1.0 layer DIST type INTERNAL
+109 126 1.0 layer BETWEEN type UPDATE
+110 119 1.0 layer BETWEEN type CREATE
+111 120 1.0 layer BETWEEN type CREATE
+112 121 1.0 layer BETWEEN type CREATE
+113 122 1.0 layer BETWEEN type CREATE
+114 123 1.0 layer BETWEEN type CREATE
+115 124 1.0 layer BETWEEN type CREATE
+116 125 1.0 layer BETWEEN type CREATE
+117 126 1.0 layer BETWEEN type CREATE
+118 127 1.0 layer BETWEEN type CREATE
+119 40 1.0 layer BETWEEN type SELECT
+119 40 1.0 layer BETWEEN type UPDATE
+120 41 1.0 layer BETWEEN type SELECT
+120 41 1.0 layer BETWEEN type UPDATE
+121 42 1.0 layer BETWEEN type SELECT
+121 42 1.0 layer BETWEEN type UPDATE
+122 43 1.0 layer BETWEEN type SELECT
+122 43 1.0 layer BETWEEN type UPDATE
+123 18 1.0 layer BETWEEN type SELECT
+123 114 1.0 layer BETWEEN type UPDATE
+124 17 1.0 layer BETWEEN type SELECT
+124 115 1.0 layer BETWEEN type UPDATE
+125 20 1.0 layer BETWEEN type SELECT
+125 116 1.0 layer BETWEEN type UPDATE
+126 109 1.0 layer BETWEEN type SELECT
+126 117 1.0 layer BETWEEN type UPDATE
+127 98 1.0 layer BETWEEN type SELECT
+127 118 1.0 layer BETWEEN type UPDATE
+128 48 1.0 layer BETWEEN type SELECT
+128 13 1.0 layer BETWEEN type UPDATE
+129 50 1.0 layer BETWEEN type SELECT
+129 26 1.0 layer BETWEEN type UPDATE
+129 105 1.0 layer BETWEEN type UPDATE
+130 28 1.0 layer BETWEEN type UPDATE
+130 28 1.0 layer BETWEEN type SELECT
+130 104 1.0 layer BETWEEN type UPDATE
+131 56 1.0 layer BETWEEN type SELECT
+131 35 1.0 layer BETWEEN type UPDATE
+132 25 1.0 layer BETWEEN type SELECT
+132 49 1.0 layer BETWEEN type UPDATE
+133 62 1.0 layer BETWEEN type SELECT
+133 99 1.0 layer BETWEEN type UPDATE

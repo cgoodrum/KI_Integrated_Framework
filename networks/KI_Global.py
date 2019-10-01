@@ -28,6 +28,7 @@ from openpyxl import load_workbook
 import csv
 import xlwings as xw
 import yaml
+import pickle as pkl
 
 
 logger = logging.getLogger(__name__)
@@ -646,15 +647,25 @@ class Integrated_Framework(Knowledge_Network):
         return df_out
 
     def create_node_dataframe(self):
-        temp = self.network.nodes(data=True)[42]['data_status_ts']
-        time = [n for n in temp.keys()]
-        values = [d for d in temp.values()]
-        temp2 = {'time': time, 'data_status_ts': values}
-        print(temp)
-        print()
-        df = pd.DataFrame(temp2)#, index=[self.network.nodes(data=True)[42]['node_name']])
-        #df  = df.T
-        print(df)
+        dfs = []
+        for node, node_data in self.network.nodes(data=True):
+            node_name = node_data['node_name']
+            layer = node_data['layer']
+            type = node_data['type']
+            time = [t for t,ds in node_data['data_status_ts'].items()]
+            ds = [ds for t,ds in node_data['data_status_ts'].items()]
+            values = [val for t,val in node_data['val_ts'].items()]
+            data_dict = {'data_status':ds, "val":values, 'time': time}
+            tdf = pd.DataFrame(data_dict)
+            tdf['node_name'] = node_name
+            tdf['layer'] = layer
+            tdf['type'] = type
+            dfs.append(tdf)
+        df = pd.concat(dfs).reset_index(drop=True)
+        return df
+
+    def save_network_pickle(self, filename):
+        nx.write_gpickle(self.network,"../results\\{}.gpickle".format(filename))
 
     def do_local_calculations(self, local_layer_name = "", excel_filename = "", references_filename = "cell_references.yaml", macro_name = None ):
         # Find independent variables, place their values into the excel sheet, and place all new values into the network.
@@ -787,8 +798,8 @@ class Integrated_Framework(Knowledge_Network):
             entropy_dict[t] = self.calculate_simple_entropy(step_ds)
             new_entropy[t] = 1-(entropy_dict[t]/entropy_dict[0])
 
-        return new_entropy
-        #return entropy_dict
+        #return new_entropy
+        return entropy_dict
 
     def calculate_simple_entropy(self, data_status_list):
         # A simple calculation using the data status of each data element, using the
@@ -814,33 +825,52 @@ class Integrated_Framework(Knowledge_Network):
         H = entropy(p,base=2)
         return H
 
-    def get_network_topological_entropy(self, layer_name): # FIX THIS!!
+    def get_network_topological_entropy(self, layer_name, time):
 
-        G = self.network.copy()
-        nodes_to_remove = [n for n,d in self.network.nodes(data=True) if d['layer'] != layer_name]
+        G = self.create_DiGraph_from_MultiDiGraph(self.network)
+        nodes_to_remove = [n for n,d in G.nodes(data=True) if d['layer'] != layer_name or d['time'] > time]
         G.remove_nodes_from(nodes_to_remove)
-        G = nx.DiGraph(G)
 
-        time_list = [t for t in range(self.time_step)]
-        pr_dict = {}
-        entropy_dict = {}
-        new_entropy = {}
-        for t in time_list:
+        num_nodes = G.number_of_nodes()
 
-            pr_dict[t] = self.calculate_pagerank(layer_name = layer_name)
-            entropy_dict[t] = self.calculate_simple_entropy(step_ds)
-            new_entropy[t] = 1-(entropy_dict[t]/entropy_dict[0])
-
-
-        pagerank = self.calculate_pagerank(layer_name = layer_name)
-        d = dit.ScalarDistribution(pagerank)
-        entropy = dit.shannon.entropy(d)
+        if num_nodes == 0:
+            entropy = None
+        else:
+            pagerank = self.calculate_pagerank(G)
+            d = dit.ScalarDistribution(pagerank)
+            entropy = dit.shannon.entropy(d)
 
         return entropy
+
+    def build_topological_entropy_time_series(self, layer_name):
+        time_list = range(self.time_step+1)
+        entropy_dict = {}
+        for t in time_list:
+            entropy_dict[t] = self.get_network_topological_entropy(layer_name,t)
+
+        return entropy_dict
 
     def calculate_pagerank(self, G, alpha = 0.85):
         pagerank = nx.pagerank(G, alpha = alpha)
         return pagerank
+
+    def create_DiGraph_from_MultiDiGraph(self, G):
+        # create weighted graph from self.network
+
+        G1 = nx.create_empty_copy(G)
+        G1 = nx.DiGraph(G1)
+
+        for u,v,data in G.edges(data=True):
+            w = data['weight'] if 'weight' in data else 1.0
+            if G1.has_edge(u,v):
+                G1[u][v]['weight'] += w
+            else:
+                G1.add_edge(u, v, weight=w)
+            G1[u][v]['layer'] = data['layer']
+            G1[u][v]['type'] = data['type']
+            G1[u][v]['time'] = data['time']
+
+        return G1
 
 ###############################################################################
 class K_Global(Knowledge_Network):
@@ -874,6 +904,9 @@ def save_pickle(dataframe, filename):
 
 def get_pickle(filename):
     return pd.read_pickle('../results\\{}.pkl'.format(filename))
+
+def get_network_pickle(filename):
+    return nx.read_gpickle("../results\\{}.gpickle".format(filename))
 
 def get_case_params(filename):
     if filename:
@@ -993,7 +1026,7 @@ def run_case_study(case_study_filename):
     KIF.draw_framework()
     #KIF.draw_layer("I_GLOBAL")
 
-def run_case_study_2(case_study_filename):
+def run_simple_case(case_study_filename):
 
     case_params = get_case_params(case_study_filename)
 
@@ -1210,50 +1243,121 @@ def run_case_study_2(case_study_filename):
     #df.to_excel("../results\\{}.xlsx".format(case_name))
 
     #KIF.create_node_dataframe()
+
+    #KIF.save_network_pickle("{}_network".format(case_name))
+
+    #filename = "KIF_pickle.p"
+    #pkl.dump(KIF,"../results\\{}".format(filename))
+
     # temp_ts = {}
     # KIF.build_entropy_time_series(temp_ts, KIF.calculate_simple_entropy('OPS'))
     # print(temp_ts)
 
-    #test = KIF.get_network_topological_entropy("OPS")
 
-    OPS_DSE = KIF.get_network_data_status_entropy("OPS")
-    NAVARCH_DSE = KIF.get_network_data_status_entropy("NAVARCH")
-    DIST_DSE = KIF.get_network_data_status_entropy("DIST")
-    KIF.save_entropy_time_series_plot(OPS_DSE,
-        filename = 'OPS_DSE_New',
+
+    # --------------------- PLOTTING FIGURES ----------------------
+
+    # ------------------------ Topological Entropy ----------------------
+    OPS_TE = KIF.build_topological_entropy_time_series("OPS")
+    NAVARCH_TE = KIF.build_topological_entropy_time_series("NAVARCH")
+    DIST_TE = KIF.build_topological_entropy_time_series("DIST")
+    I_GLOBAL_TE = KIF.build_topological_entropy_time_series("I_GLOBAL")
+    K_GLOBAL_TE = KIF.build_topological_entropy_time_series("K_GLOBAL")
+    KIF.save_entropy_time_series_plot(OPS_TE,
+        filename = 'OPS_TE_SIMPLE',
         xlabel = 'Time',
-        ylabel = 'New DSE',
+        ylabel = 'Topological Entropy',
         title = 'OPS',
         x_min = 0,
         x_max = KIF.time_step,
         y_min = -0.01,
-        y_max=1.01,
+        y_max=6,
         grid = True
         )
-    KIF.save_entropy_time_series_plot(NAVARCH_DSE,
-        filename = 'NAVARCH_DSE_New',
+    KIF.save_entropy_time_series_plot(NAVARCH_TE,
+        filename = 'NAVARCH_TE_SIMPLE',
         xlabel = 'Time',
-        ylabel = 'New DSE',
+        ylabel = 'Topological Entropy',
         title = 'NAVARCH',
         x_min = 0,
         x_max = KIF.time_step,
         y_min = -0.01,
-        y_max=1.01,
+        y_max=6,
         grid = True
         )
-    KIF.save_entropy_time_series_plot(DIST_DSE,
-        filename = 'DIST_DSE_New',
+    KIF.save_entropy_time_series_plot(DIST_TE,
+        filename = 'DIST_TE_SIMPLE',
         xlabel = 'Time',
-        ylabel = 'New DSE',
+        ylabel = 'Topological Entropy',
         title = 'DIST',
         x_min = 0,
         x_max = KIF.time_step,
         y_min = -0.01,
-        y_max=1.01,
+        y_max=6,
+        grid = True
+        )
+    KIF.save_entropy_time_series_plot(I_GLOBAL_TE,
+        filename = 'I_GLOBAL_TE_SIMPLE',
+        xlabel = 'Time',
+        ylabel = 'Topological Entropy',
+        title = 'Global Information',
+        x_min = 0,
+        x_max = KIF.time_step,
+        y_min = -0.01,
+        y_max=6,
+        grid = True
+        )
+    KIF.save_entropy_time_series_plot(K_GLOBAL_TE,
+        filename = 'K_GLOBAL_TE_SIMPLE',
+        xlabel = 'Time',
+        ylabel = 'Topological Entropy',
+        title = 'Global Knowledge',
+        x_min = 0,
+        x_max = KIF.time_step,
+        y_min = -0.01,
+        y_max= 6,
         grid = True
         )
 
-    #KIF.draw_framework()
+    # ------------------------ DSE ----------------------
+    # OPS_DSE = KIF.get_network_data_status_entropy("OPS")
+    # NAVARCH_DSE = KIF.get_network_data_status_entropy("NAVARCH")
+    # DIST_DSE = KIF.get_network_data_status_entropy("DIST")
+    # KIF.save_entropy_time_series_plot(OPS_DSE,
+    #     filename = 'OPS_DSE_New',
+    #     xlabel = 'Time',
+    #     ylabel = 'New DSE',
+    #     title = 'OPS',
+    #     x_min = 0,
+    #     x_max = KIF.time_step,
+    #     y_min = -0.01,
+    #     y_max=1.01,
+    #     grid = True
+    #     )
+    # KIF.save_entropy_time_series_plot(NAVARCH_DSE,
+    #     filename = 'NAVARCH_DSE_New',
+    #     xlabel = 'Time',
+    #     ylabel = 'New DSE',
+    #     title = 'NAVARCH',
+    #     x_min = 0,
+    #     x_max = KIF.time_step,
+    #     y_min = -0.01,
+    #     y_max=1.01,
+    #     grid = True
+    #     )
+    # KIF.save_entropy_time_series_plot(DIST_DSE,
+    #     filename = 'DIST_DSE_New',
+    #     xlabel = 'Time',
+    #     ylabel = 'New DSE',
+    #     title = 'DIST',
+    #     x_min = 0,
+    #     x_max = KIF.time_step,
+    #     y_min = -0.01,
+    #     y_max=1.01,
+    #     grid = True
+    #     )
+
+    KIF.draw_framework()
     #KIF.draw_layer("I_GLOBAL")
 
     #[print(n,d) for n,d in KIF.network.nodes(data=True) if d['layer'] == "OPS"]
@@ -1270,11 +1374,480 @@ def run_case_study_2(case_study_filename):
     #print("-----------------------ALL----------------------")
     #[print("\n", d['node_name'], "  ", d['layer'], "\n" ,d['val'], "\n", d['data_status'], "\n", d['val_ts'], "\n", d['data_status_ts']) for n,d in KIF.network.nodes(data=True)]
 
+def run_hard_case(case_study_filename):
+
+    case_params = get_case_params(case_study_filename)
+
+    case_name = case_params["name"]
+    layer_sequence = case_params["layer_sequence"]
+    KG_target_nodes = case_params["KG_target_nodes"]
+    KG_unknown_target_node_sequence = case_params["KG_sequence"]
+    excel_filename = case_params["excel_filename"]
+    cell_references_filename = case_params["references_filename"]
+
+    # Open instance of excel spreadsheet, and clear workbooks for processing
+    excel_doc = Excel(excel_filename, cell_references_filename)
+    excel_doc.run_macro("Reset_Workbook")
+    excel_doc.save_excel()
+    excel_doc.close()
+
+    KIF = Integrated_Framework()
+    KIF.build_layered_network()
+
+    # Add all target nodes to Global K
+    for KG_target_node_name, KG_target_node_val in KG_target_nodes.items():
+        KIF.add_KG_target_node(KG_target_node_name, **{"value": KG_target_node_val})
+    KIF.update_time()
+
+    # Grow Global I from Global K
+    for KG_target_node_name, KG_target_node_val in KG_target_nodes.items():
+        KIF.grow_IG_from_KG(KG_target_node_name)
+        KIF.global_I.target_node.append(KIF.get_node_id(KG_target_node_name, layer = "I_GLOBAL"))
+    KIF.update_time()
+
+    # Start with selecting GMT
+
+    local_node_id = KIF.select_KL_node_from_IG("GMT", "NAVARCH")
+    negotiated_nodes = KIF.find_negotiated_nodes(local_node_id, "NAVARCH")
+
+    # Grow IG from KL
+    IG_negotiated_nodes = []
+    for node_id, node_name in negotiated_nodes:
+        new_node_id = KIF.grow_IG_from_KL(node_name, "NAVARCH")
+        IG_negotiated_nodes.append(new_node_id)
+    KIF.update_time()
+
+    # Select nodes in OPS from newly grown IG
+    # Find nodes in other local structures to populate IG node values
+    layers_to_search = {lay:KIF.local_K[lay].network for lay in layer_sequence if lay == "OPS"}
+    found_nodes = {}
+    for lay, network in layers_to_search.items():
+        local_nodes = {node_id:node_data for node_id, node_data in network.nodes(data=True)}
+        local_node_names = [node_data['node_name'] for node_id, node_data in local_nodes.items()]
+        for IG_node_id, IG_node_name in IG_negotiated_nodes:
+            if IG_node_name in local_node_names:
+                # get node data for local node
+                found_nodes.update({node_id:node_data for node_id, node_data in local_nodes.items() if node_data['node_name'] == IG_node_name})
+
+    for IG_node, IG_node_data in found_nodes.items():
+        if IG_node_data['node_name'] != "z_fuel":
+            local_node_id = KIF.select_KL_node_from_IG(IG_node_data['node_name'], "OPS")
+    KIF.update_time()
+
+
+    # Initiate Values in OPS LAYER
+    for KG_target_node_name, KG_target_node_val in KG_target_nodes.items():
+        if KG_target_node_val != None:
+            local_node_id = KIF.select_KL_node_from_IG(KG_target_node_name, "OPS")
+            KIF.send_node_value(start_node_name=KG_target_node_name, start_layer="I_GLOBAL",end_node_name=KG_target_node_name, end_layer="OPS")
+
+    KIF.do_local_calculations(local_layer_name = "OPS", excel_filename = excel_filename, macro_name = "Calculate_OPS_z")
+    KIF.update_time()
+
+    # Send the values from the selected OPS nodes back to Global information
+    for found_node_id, found_node_data in found_nodes.items():
+        KIF.send_node_value(found_node_data['node_name'], found_node_data['layer'], found_node_data['node_name'], "I_GLOBAL") ## POTENTIAL ISSUE
+    KIF.update_time()
+
+    # Send the values from the global information layer back to the original layers
+    for node_id, node_name in negotiated_nodes:
+        KIF.send_node_value(node_name, "I_GLOBAL", node_name, "NAVARCH")
+    KIF.do_local_calculations(local_layer_name = "NAVARCH", excel_filename = excel_filename, macro_name = "Calculate_NAVARCH_z_fuel")
+    KIF.update_time()
+
+    # Send GMT Value to IG
+    KIF.send_node_value("GMT", "NAVARCH", "GMT", "I_GLOBAL")
+    KIF.update_time()
+
+    # NEXT DO %
+
+    # Get Value from NAVARCH and communicate to IG.
+    local_node_id = KIF.select_KL_node_from_IG("%", "NAVARCH")
+    KIF.update_time()
+
+    # Communicate the Trim value to the IG layer
+    KIF.send_node_value("%", "NAVARCH", "%", "I_GLOBAL")
+    KIF.update_time()
+
+    # NEXT DO TRIM
+
+    # Select Trim node in NAVARCH layer from IG layer
+    local_node_id = KIF.select_KL_node_from_IG("Trim", "NAVARCH")
+    KIF.update_time()
+
+    # Do the calculations in the NAVARCH LAYER
+    KIF.do_local_calculations(local_layer_name = "NAVARCH", excel_filename = excel_filename, macro_name = "Calculate_Trim")
+    KIF.update_time()
+
+    # Communicate the Trim value to the IG layer
+    KIF.send_node_value("Trim", "NAVARCH", "Trim", "I_GLOBAL")
+    KIF.update_time()
+
+    # Now have OPS decide where the vehicles need to go.
+    OPS_unknown_nodes = KIF.find_all_unknown_nodes("OPS")
+    OPS_unknown_intermediate_nodes = KIF.find_all_unknown_intermediate_nodes("OPS")
+
+    # Grow IG from KL
+    IG_negotiated_nodes = []
+    for node_id, node_name in OPS_unknown_intermediate_nodes:
+        new_node_id = KIF.grow_IG_from_KL(node_name, "OPS")
+        IG_negotiated_nodes.append(new_node_id)
+    KIF.update_time()
+
+    # Select nodes in NAVARCH from newly grown IG
+    # Find nodes in other local structures to populate IG node values
+    layers_to_search = {lay:KIF.local_K[lay].network for lay in layer_sequence if lay == "NAVARCH"}
+    found_nodes = {}
+    for lay, network in layers_to_search.items():
+        local_nodes = {node_id:node_data for node_id, node_data in network.nodes(data=True)}
+        local_node_names = [node_data['node_name'] for node_id, node_data in local_nodes.items()]
+        for IG_node_id, IG_node_name in IG_negotiated_nodes:
+            if IG_node_name in local_node_names:
+                # get node data for local node
+                found_nodes.update({node_id:node_data for node_id, node_data in local_nodes.items() if node_data['node_name'] == IG_node_name})
+
+    # Select the node in NAVARCH
+    for IG_node, IG_node_data in found_nodes.items():
+        local_node_id = KIF.select_KL_node_from_IG(IG_node_data['node_name'], "NAVARCH")
+    KIF.update_time()
+
+    # Communicate the selected node to the IG layer
+    for found_node_id, found_node_data in found_nodes.items():
+        KIF.send_node_value(found_node_data['node_name'], found_node_data['layer'], found_node_data['node_name'], "I_GLOBAL") ## POTENTIAL ISSUE
+    KIF.update_time()
+
+    # Send updated Values to OPS
+    for node_id, node_name in OPS_unknown_intermediate_nodes:
+        KIF.send_node_value(node_name, "I_GLOBAL", node_name, "OPS")
+
+    # Have OPS do their calculation to select the x,v for each vehicle. If exact solution found, done. Else, transmit new val to IG, then to NAVARCH
+    KIF.do_local_calculations(local_layer_name = "OPS", excel_filename = excel_filename, macro_name = "Recalculate_OPS")
+    KIF.update_time()
+
+    # Communicate OPS node back to IG
+    KIF.send_node_value('x_veh', "OPS", 'x_veh', "I_GLOBAL")
+    KIF.update_time()
+
+    # Communicate IG node to NAVARCH and Have NAVARCH Recalculate their values
+    KIF.send_node_value('x_veh', "I_GLOBAL", 'x_veh', "NAVARCH")
+    KIF.do_local_calculations(local_layer_name = "NAVARCH", excel_filename = excel_filename)
+    KIF.update_time()
+
+    # Have NAVARCH recalculate trim (since its out of bounds)
+    KIF.do_local_calculations(local_layer_name = "NAVARCH", excel_filename = excel_filename, macro_name = 'Recalculate_Trim')
+    KIF.update_time()
+
+    # Communicate the Trim value to the IG layer
+    KIF.send_node_value("Trim", "NAVARCH", "Trim", "I_GLOBAL")
+    KIF.update_time()
+
+    # NEXT DO REQUIRED POWER
+
+    # Identify node in DIST
+    local_node_id = KIF.select_KL_node_from_IG("required_power", "DIST")
+    negotiated_nodes = KIF.find_negotiated_nodes(local_node_id, "DIST")
+    KIF.update_time()
+
+
+    IG_negotiated_nodes = []
+    for node_id, node_name in negotiated_nodes:
+        if node_name == "pipe_diameter":
+            pass
+        elif node_name == "vol_flow_rate":
+            new_node_id = KIF.grow_IG_from_KL(node_name, "DIST")
+            IG_negotiated_nodes.append(new_node_id)
+        else:
+            new_node_id = KIF.select_IG_node_from_KL(node_name,"DIST")
+
+    KIF.update_time()
+
+    # Transmit back z_veh, ask NAVARCH for z_fuel, and ask OPS for flow rate in single time step
+    KIF.send_node_value("z_veh", "I_GLOBAL", "z_veh", "DIST")
+    KIF.select_KL_node_from_IG("z_fuel", "NAVARCH")
+    KIF.select_KL_node_from_IG("vol_flow_rate","OPS")
+    KIF.update_time()
+
+    # Send OPS and NAVARCH values back to IG
+    KIF.send_node_value("vol_flow_rate", "OPS", "vol_flow_rate", "I_GLOBAL")
+    KIF.send_node_value("z_fuel", "NAVARCH", "z_fuel", "I_GLOBAL")
+    KIF.update_time()
+
+    # Send IG value to DIST and do calculation
+    KIF.send_node_value("vol_flow_rate", "I_GLOBAL", "vol_flow_rate", "DIST")
+    KIF.send_node_value("z_fuel", "I_GLOBAL", "z_fuel", "DIST")
+    KIF.do_local_calculations(local_layer_name = "DIST", excel_filename = excel_filename, macro_name = "Calculate_Power_Req")
+    KIF.do_local_calculations(local_layer_name = "DIST", excel_filename = excel_filename, macro_name = "Calculate_Power_Req")
+    KIF.update_time()
+
+    # Recalculate z_fuel since it no longer works
+    KIF.do_local_calculations(local_layer_name = "DIST", excel_filename = excel_filename, macro_name = "Recalculate_DIST")
+    KIF.update_time()
+
+    # Communicate z_fuel to IG
+    KIF.send_node_value("z_veh","DIST","z_veh","I_GLOBAL")
+    KIF.update_time()
+
+    # Communicte z_fuel in IG to NAVARCH and have them redo calc
+    KIF.send_node_value("z_veh", "I_GLOBAL", "z_veh", "NAVARCH")
+    KIF.do_local_calculations(local_layer_name = "NAVARCH", excel_filename = excel_filename)
+    KIF.update_time()
+
+    # Send new GMT to IG from NAVARCH
+    KIF.send_node_value("GMT", "NAVARCH", "GMT", "I_GLOBAL")
+    KIF.update_time()
+
+    # Send calculated power req to I_GLOBAL
+    KIF.send_node_value("required_power", "DIST", "required_power", "I_GLOBAL")
+    KIF.update_time()
+
+    # NEXT DO PIPE_DIAMETER
+
+    # Get Value from NAVARCH and communicate to IG.
+    local_node_id = KIF.select_KL_node_from_IG("pipe_diameter", "DIST")
+    KIF.update_time()
+
+    # Communicate the Trim value to the IG layer
+    KIF.send_node_value("pipe_diameter", "DIST", "pipe_diameter", "I_GLOBAL")
+    KIF.update_time()
+
+    # Communicate all values back to K_GLOBAL from I_GLOBAL
+    #IG_unknown_nodes = {n:d for n,d in KIF.network.nodes(data=True) if d['layer'] == "I_GLOBAL" and not (d['node_name'] == 'n_F35' or d['node_name'] == 'n_AV8B' or d['node_name'] == 'n_SH60' or d['node_name'] == 'n_V22')}
+
+    for n, d in KIF.global_K.network.nodes(data=True):
+        if d['data_status'] == 0:
+            KIF.send_node_value(d['node_name'],"I_GLOBAL", d['node_name'], "K_GLOBAL")
+
+    # --------------------- PLOTTING FIGURES ----------------------
+
+    # ------------------------ Topological Entropy ----------------------
+    OPS_TE = KIF.build_topological_entropy_time_series("OPS")
+    NAVARCH_TE = KIF.build_topological_entropy_time_series("NAVARCH")
+    DIST_TE = KIF.build_topological_entropy_time_series("DIST")
+    I_GLOBAL_TE = KIF.build_topological_entropy_time_series("I_GLOBAL")
+    K_GLOBAL_TE = KIF.build_topological_entropy_time_series("K_GLOBAL")
+    KIF.save_entropy_time_series_plot(OPS_TE,
+        filename = 'OPS_TE_HARD',
+        xlabel = 'Time',
+        ylabel = 'Topological Entropy',
+        title = 'OPS',
+        x_min = 0,
+        x_max = KIF.time_step,
+        y_min = -0.01,
+        y_max=6,
+        grid = True
+        )
+    KIF.save_entropy_time_series_plot(NAVARCH_TE,
+        filename = 'NAVARCH_TE_HARD',
+        xlabel = 'Time',
+        ylabel = 'Topological Entropy',
+        title = 'NAVARCH',
+        x_min = 0,
+        x_max = KIF.time_step,
+        y_min = -0.01,
+        y_max=6,
+        grid = True
+        )
+    KIF.save_entropy_time_series_plot(DIST_TE,
+        filename = 'DIST_TE_HARD',
+        xlabel = 'Time',
+        ylabel = 'Topological Entropy',
+        title = 'DIST',
+        x_min = 0,
+        x_max = KIF.time_step,
+        y_min = -0.01,
+        y_max=6,
+        grid = True
+        )
+    KIF.save_entropy_time_series_plot(I_GLOBAL_TE,
+        filename = 'I_GLOBAL_TE_HARD',
+        xlabel = 'Time',
+        ylabel = 'Topological Entropy',
+        title = 'Global Information',
+        x_min = 0,
+        x_max = KIF.time_step,
+        y_min = -0.01,
+        y_max=6,
+        grid = True
+        )
+    KIF.save_entropy_time_series_plot(K_GLOBAL_TE,
+        filename = 'K_GLOBAL_TE_HARD',
+        xlabel = 'Time',
+        ylabel = 'Topological Entropy',
+        title = 'Global Knowledge',
+        x_min = 0,
+        x_max = KIF.time_step,
+        y_min = -0.01,
+        y_max= 6,
+        grid = True
+        )
+
+    # # ------------------------ DSE ----------------------
+    #
+    # OPS_DSE = KIF.get_network_data_status_entropy("OPS")
+    # NAVARCH_DSE = KIF.get_network_data_status_entropy("NAVARCH")
+    # DIST_DSE = KIF.get_network_data_status_entropy("DIST")
+    # KIF.save_entropy_time_series_plot(OPS_DSE,
+    #     filename = 'OPS_DSE_HARD',
+    #     xlabel = 'Time',
+    #     ylabel = 'DSE',
+    #     title = 'OPS',
+    #     x_min = 0,
+    #     x_max = KIF.time_step,
+    #     y_min = -0.01,
+    #     y_max=1.01,
+    #     grid = True
+    #     )
+    # KIF.save_entropy_time_series_plot(NAVARCH_DSE,
+    #     filename = 'NAVARCH_DSE_HARD',
+    #     xlabel = 'Time',
+    #     ylabel = 'DSE',
+    #     title = 'NAVARCH',
+    #     x_min = 0,
+    #     x_max = KIF.time_step,
+    #     y_min = -0.01,
+    #     y_max=1.01,
+    #     grid = True
+    #     )
+    # KIF.save_entropy_time_series_plot(DIST_DSE,
+    #     filename = 'DIST_DSE_HARD',
+    #     xlabel = 'Time',
+    #     ylabel = 'DSE',
+    #     title = 'DIST',
+    #     x_min = 0,
+    #     x_max = KIF.time_step,
+    #     y_min = -0.01,
+    #     y_max=1.01,
+    #     grid = True
+    #     )
+    #
+    # KIF.save_network_pickle("{}_network".format(case_name))
+    #KIF.draw_framework()
+
+def create_DiGraph_from_MultiDiGraph(G):
+    # create weighted graph from self.network
+
+    G1 = nx.create_empty_copy(G)
+    G1 = nx.DiGraph(G1)
+
+    for u,v,data in G.edges(data=True):
+        w = data['weight'] if 'weight' in data else 1.0
+        if G1.has_edge(u,v):
+            G1[u][v]['weight'] += w
+        else:
+            G1.add_edge(u, v, weight=w)
+        G1[u][v]['layer'] = data['layer']
+        G1[u][v]['type'] = data['type']
+        G1[u][v]['time'] = data['time']
+
+    return G1
+
 ###############################################################################
 def main():
 
     #GMT_case_study("case_study_parameters.yaml")
-    run_case_study_2("case_study_parameters.yaml")
+    run_simple_case("simple_case_study_parameters.yaml")
+    #run_hard_case("hard_case_study_parameters.yaml")
+
+
+
+
+
+
+
+
+
+    # G = get_network_pickle("HARD_CASE_network")
+    #
+    # # for n,d in G.nodes(data=True):
+    # #     print('\n', n, d['node_name'], d['layer'])
+    # #     print(d['val'])
+    # #     print(d['data_status'])
+    # #     print(d['val_ts'])
+    # #     print(d['data_status_ts'])
+    #
+    # #[print(n,k,v) for k,v in d.items() for n,d in G.nodes(data=True)]
+    #
+    # # G = get_network_pickle("SIMPLE_CASE_network")
+    # #
+    # # #nx.write_pajek(G,"test.net")
+    # dfs = []
+    # for node, node_data in G.nodes(data=True):
+    #     node_name = node_data['node_name']
+    #     layer = node_data['layer']
+    #     type = node_data['type']
+    #     time = [t for t,ds in node_data['data_status_ts'].items()]
+    #     ds = [ds for t,ds in node_data['data_status_ts'].items()]
+    #     values = [val for t,val in node_data['val_ts'].items()]
+    #     data_dict = {'data_status':ds, "val":values, 'time': time}
+    #     tdf = pd.DataFrame(data_dict)
+    #     tdf['node_name'] = node_name
+    #     tdf['layer'] = layer
+    #     tdf['type'] = type
+    #     dfs.append(tdf)
+    # df = pd.concat(dfs).reset_index(drop=True)
+    #
+    # save_pickle(df, "HARD_CASE_node_data")
+    #
+    #
+    # #print(df)
+    # df = get_pickle("HARD_CASE_node_data")
+    # midf = df.set_index(['layer','node_name', 'time'])
+    # #print(midf.loc['I_GLOBAL',:,:].to_string())
+    # #temp = midf.loc[['NAVARCH','I_GLOBAL'],"x_veh",:]
+    # #print(temp)
+    #
+    # # plt.figure()
+    # # sns.set()
+    # # sns.set_style('white')
+    # # plt.plot(temp)
+    # # sns.despine()
+    # # plt.xlabel("")
+    # # plt.ylabel("")
+    # # # plt.xlim()
+    # # # plt.ylim(y_min,y_max)
+    # # plt.grid(False)
+    # # plt.show()
+    # # #plt.title()
+    #
+    #
+    # G1 = create_DiGraph_from_MultiDiGraph(G)
+    #
+    #
+    # print("----------------------------EDGES-------------------------")
+    # [print(u,v,d) for u,v,d in G1.edges(data=True)]
+    #print("----------------------------NODES-------------------------")
+    #[print(n,d) for n,d in G1.nodes(data=True)]
+    #print()
+    #[print(u,v,d) for u,v,d in G.edges(data=True)]
+
+
+    # ----------------------------- PLOTTING --------------------------------
+    # plt.figure()
+    # sns.set()
+    # sns.set_style('white')
+    # #plt.hold(True)
+    # for node, node_data in G.nodes(data=True):
+    #     if node_data['layer'] == "NAVARCH":
+    #         node_name = node_data['node_name']
+    #         temp = midf.loc['NAVARCH',node_name,:]['data_status']
+    #         plt.plot(temp)
+    # #plt.hold(False)
+    # plt.grid(False)
+    # plt.show()
+
+
+
+    #time = [d for n,d in temp.keys()]
+    #values = [d for d in temp.values()]
+    #temp2 = {'time': temp['data_status_ts'].keys(), 'data_status': temp['data_status_ts'].values(), 'val': temp['val_ts'].values()}
+    #print(temp)
+    #print()
+    #print(temp2)
+    #df = pd.DataFrame(temp2)#, index=[self.network.nodes(data=True)[42]['node_name']])
+    #df  = df.T
+    #print(df)
+
+
     #df = get_pickle("SIMPLE_CASE")
 
     #print(df[])
