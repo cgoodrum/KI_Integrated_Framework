@@ -134,8 +134,8 @@ def main():
 
     # Import case study file
 
-    case_params = get_case_params("hard_case_study_parameters.yaml")
-    #case_params = get_case_params("simple_case_study_parameters.yaml")
+    #case_params = get_case_params("hard_case_study_parameters.yaml")
+    case_params = get_case_params("simple_case_study_parameters.yaml")
 
     layer_names = case_params["layer_networks"]
     excel_filename = case_params["excel_filename"]

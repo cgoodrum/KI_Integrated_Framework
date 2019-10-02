@@ -3,7 +3,7 @@
 #   - INITIAL TARGET NODE IN THE KG LAYER
 
 name:
-  "SIMPLE_CASE"
+  "HARD_CASE"
 
 layer_sequence:
   [
@@ -18,10 +18,10 @@ layer_networks:
   DIST: "KS_DIST.net"
 
 KG_target_nodes:
-      #n_F35: 0
-      #n_V22: 0
-      #n_AV8B: 0
-      n_SH60: 36
+      n_F35: 1
+      n_V22: 2
+      n_AV8B: 8
+      n_SH60: 3
       GMT:
       '%':
       Trim:
