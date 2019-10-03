@@ -770,6 +770,58 @@ class Integrated_Framework(Knowledge_Network):
         for u,v,d in IG_projection.edges(data=True):
             self.network.add_edge(u,v, layer = "I_GLOBAL", type = "PROJECTION", weight = 1.0, time = self.time_step)
 
+    def project_IG_layer_edges(self):
+
+        G = deepcopy(self.network)
+        IG_node_IDs = [n for n,d in G.nodes(data=True) if d['layer'] == "I_GLOBAL"]
+        edges_to_remove = [(u,v) for u,v,d in G.edges(data=True) if d['type'] == "PROJ"]
+        G.remove_edges_from(edges_to_remove)
+
+        for node in IG_node_IDs:
+            all_shortest_paths = nx.single_target_shortest_path(G,node)
+            other_IG_nodes = [n for n in IG_node_IDs if n != node]
+
+            for other_node in other_IG_nodes:
+                if other_node in all_shortest_paths.keys():
+                    found = False
+                    for n in all_shortest_paths[other_node]:
+                        if G.node[n]['layer'] == "I_GLOBAL":
+                            if found == False:
+                                start_node_id = n
+                            else:
+                                end_node_id = n
+                                if self.network.has_edge(start_node_id, end_node_id) == False:
+                                    self.network.add_edge(start_node_id,end_node_id, layer = "I_GLOBAL", type = "PROJ", weight = 1.0, time = self.time_step)
+                                    #print("Edge Added: {} ({})".format((start_node_id, end_node_id), (G.node[start_node_id]['node_name'], G.node[end_node_id]['node_name'])))
+                                break
+                            found = True
+
+    def project_KG_layer_edges(self):
+
+        G = deepcopy(self.network)
+        KG_node_IDs = [n for n,d in G.nodes(data=True) if d['layer'] == "K_GLOBAL"]
+        nodes_to_remove = [n for n,d in G.nodes(data=True) if d['layer'] != "I_GLOBAL" and d['layer'] != "K_GLOBAL"]
+        G.remove_nodes_from(nodes_to_remove)
+
+        for node in KG_node_IDs:
+            all_shortest_paths = nx.single_target_shortest_path(G,node)
+            other_KG_nodes = [n for n in KG_node_IDs if n != node]
+
+            for other_node in other_KG_nodes:
+                if other_node in all_shortest_paths.keys():
+                    found = False
+                    for n in all_shortest_paths[other_node]:
+                        if G.node[n]['layer'] == "K_GLOBAL":
+                            if found == False:
+                                start_node_id = n
+                            else:
+                                end_node_id = n
+                                if self.network.has_edge(start_node_id, end_node_id) == False:
+                                    self.network.add_edge(start_node_id,end_node_id, layer = "K_GLOBAL", type = "PROJ", weight = 1.0, time = self.time_step)
+                                    #print("Edge Added: {} ({})".format((start_node_id, end_node_id), (G.node[start_node_id]['node_name'], G.node[end_node_id]['node_name'])))
+                                break
+                            found = True
+
     def update_time(self):
         # Increment time_step by 1, and update all node timeseries in all networks (local and integrated)
 
@@ -780,11 +832,19 @@ class Integrated_Framework(Knowledge_Network):
             #Update time series
             self.network.node[n]['val_ts'][self.time_step] = self.network.node[n]['val']
             self.network.node[n]['data_status_ts'][self.time_step] = self.network.node[n]['data_status']
+
+            # Create projections in IG and KG layers
+            self.project_IG_layer_edges()
+            self.project_KG_layer_edges()
+
         self.time_step += 1
 
-    def get_network_data_status_entropy(self, layer_name):
+    def get_network_data_status_entropy(self, layer_name=None):
         # Will only work for local layers right now
-        local_network = {n:d for n,d in self.network.nodes(data=True) if d['layer'] == layer_name}
+        if layer_name:
+            local_network = {n:d for n,d in self.network.nodes(data=True) if d['layer'] == layer_name}
+        else:
+            local_network = {n:d for n,d in self.network.nodes(data=True)}
 
         time_list = [t for t in range(self.time_step)]
         ds_dict = {}
@@ -793,13 +853,14 @@ class Integrated_Framework(Knowledge_Network):
         for t in time_list:
             step_ds = []
             for n,d in local_network.items():
-                step_ds.append(d['data_status_ts'][t])
+                if t in d['data_status_ts'].keys():
+                    step_ds.append(d['data_status_ts'][t])
             ds_dict[t] = step_ds
             entropy_dict[t] = self.calculate_simple_entropy(step_ds)
             new_entropy[t] = 1-(entropy_dict[t]/entropy_dict[0])
 
         #return new_entropy
-        return entropy_dict
+        return entropy_dict, new_entropy
 
     def calculate_simple_entropy(self, data_status_list):
         # A simple calculation using the data status of each data element, using the
@@ -809,7 +870,7 @@ class Integrated_Framework(Knowledge_Network):
         num_nodes = len(data_status_list)
 
         if num_nodes <= 1:
-            return 0
+            return 1
 
         sum_1 = 0.0
         sum_0 = 0.0
@@ -826,15 +887,20 @@ class Integrated_Framework(Knowledge_Network):
         return H
 
     def get_network_topological_entropy(self, layer_name, time):
-
         G = self.create_DiGraph_from_MultiDiGraph(self.network)
-        nodes_to_remove = [n for n,d in G.nodes(data=True) if d['layer'] != layer_name or d['time'] > time]
+        if layer_name:
+            nodes_to_remove = [n for n,d in G.nodes(data=True) if d['layer'] != layer_name or d['time'] > time]
+        else:
+            nodes_to_remove = [n for n,d in G.nodes(data=True) if d['time'] > time]
+
         G.remove_nodes_from(nodes_to_remove)
+        edges_to_remove = [(u,v) for u,v,d in G.edges(data=True) if d['time'] > time]
+        G.remove_edges_from(edges_to_remove)
 
         num_nodes = G.number_of_nodes()
 
         if num_nodes == 0:
-            entropy = None
+            entropy = 0
         else:
             pagerank = self.calculate_pagerank(G)
             d = dit.ScalarDistribution(pagerank)
@@ -842,11 +908,11 @@ class Integrated_Framework(Knowledge_Network):
 
         return entropy
 
-    def build_topological_entropy_time_series(self, layer_name):
+    def build_topological_entropy_time_series(self, layer_name=None):
         time_list = range(self.time_step+1)
         entropy_dict = {}
         for t in time_list:
-            entropy_dict[t] = self.get_network_topological_entropy(layer_name,t)
+            entropy_dict[t] = self.get_network_topological_entropy(layer_name, t)
 
         return entropy_dict
 
@@ -1358,104 +1424,78 @@ def run_simple_case(case_study_filename):
     # --------------------- PLOTTING FIGURES ----------------------
 
     # ------------------------ Topological Entropy ----------------------
-    OPS_TE = KIF.build_topological_entropy_time_series("OPS")
-    NAVARCH_TE = KIF.build_topological_entropy_time_series("NAVARCH")
-    DIST_TE = KIF.build_topological_entropy_time_series("DIST")
-    I_GLOBAL_TE = KIF.build_topological_entropy_time_series("I_GLOBAL")
-    K_GLOBAL_TE = KIF.build_topological_entropy_time_series("K_GLOBAL")
-    KIF.save_entropy_time_series_plot(OPS_TE,
-        filename = 'OPS_TE_SIMPLE',
-        xlabel = 'Time',
-        ylabel = 'Topological Entropy',
-        title = 'OPS',
-        x_min = 0,
-        x_max = KIF.time_step,
-        y_min = -0.01,
-        y_max=6,
-        grid = True
-        )
-    KIF.save_entropy_time_series_plot(NAVARCH_TE,
-        filename = 'NAVARCH_TE_SIMPLE',
-        xlabel = 'Time',
-        ylabel = 'Topological Entropy',
-        title = 'NAVARCH',
-        x_min = 0,
-        x_max = KIF.time_step,
-        y_min = -0.01,
-        y_max=6,
-        grid = True
-        )
-    KIF.save_entropy_time_series_plot(DIST_TE,
-        filename = 'DIST_TE_SIMPLE',
-        xlabel = 'Time',
-        ylabel = 'Topological Entropy',
-        title = 'DIST',
-        x_min = 0,
-        x_max = KIF.time_step,
-        y_min = -0.01,
-        y_max=6,
-        grid = True
-        )
-    KIF.save_entropy_time_series_plot(I_GLOBAL_TE,
-        filename = 'I_GLOBAL_TE_SIMPLE',
-        xlabel = 'Time',
-        ylabel = 'Topological Entropy',
-        title = 'Global Information',
-        x_min = 0,
-        x_max = KIF.time_step,
-        y_min = -0.01,
-        y_max=6,
-        grid = True
-        )
-    KIF.save_entropy_time_series_plot(K_GLOBAL_TE,
-        filename = 'K_GLOBAL_TE_SIMPLE',
-        xlabel = 'Time',
-        ylabel = 'Topological Entropy',
-        title = 'Global Knowledge',
-        x_min = 0,
-        x_max = KIF.time_step,
-        y_min = -0.01,
-        y_max= 6,
-        grid = True
-        )
 
-    # ------------------------ DSE ----------------------
-    # OPS_DSE = KIF.get_network_data_status_entropy("OPS")
-    # NAVARCH_DSE = KIF.get_network_data_status_entropy("NAVARCH")
-    # DIST_DSE = KIF.get_network_data_status_entropy("DIST")
-    # KIF.save_entropy_time_series_plot(OPS_DSE,
-    #     filename = 'OPS_DSE_New',
-    #     xlabel = 'Time',
-    #     ylabel = 'New DSE',
-    #     title = 'OPS',
-    #     x_min = 0,
-    #     x_max = KIF.time_step,
-    #     y_min = -0.01,
-    #     y_max=1.01,
-    #     grid = True
-    #     )
-    # KIF.save_entropy_time_series_plot(NAVARCH_DSE,
-    #     filename = 'NAVARCH_DSE_New',
-    #     xlabel = 'Time',
-    #     ylabel = 'New DSE',
-    #     title = 'NAVARCH',
-    #     x_min = 0,
-    #     x_max = KIF.time_step,
-    #     y_min = -0.01,
-    #     y_max=1.01,
-    #     grid = True
-    #     )
-    # KIF.save_entropy_time_series_plot(DIST_DSE,
-    #     filename = 'DIST_DSE_New',
-    #     xlabel = 'Time',
-    #     ylabel = 'New DSE',
-    #     title = 'DIST',
-    #     x_min = 0,
-    #     x_max = KIF.time_step,
-    #     y_min = -0.01,
-    #     y_max=1.01,
-    #     grid = True
-    #     )
+    TE_dict = {
+        "OPS" : KIF.build_topological_entropy_time_series("OPS"),
+        "NAVARCH" : KIF.build_topological_entropy_time_series("NAVARCH"),
+        "DIST" : KIF.build_topological_entropy_time_series("DIST"),
+        "I_GLOBAL" : KIF.build_topological_entropy_time_series("I_GLOBAL"),
+        "K_GLOBAL" : KIF.build_topological_entropy_time_series("K_GLOBAL"),
+        "ALL": KIF.build_topological_entropy_time_series()
+    }
+
+    for name, vals in TE_dict.items():
+        KIF.save_entropy_time_series_plot(vals,
+            filename = '{}_TE_SIMPLE'.format(name),
+            xlabel = 'Time',
+            ylabel = 'Topological Entropy',
+            title = '{}'.format(name),
+            x_min = 0,
+            x_max = KIF.time_step,
+            y_min = -0.01,
+            y_max=7,
+            grid = True
+            )
+
+    #------------------------ Data Status Entropy ----------------------
+
+    OPS_DSE, OPS_DSE_New = KIF.get_network_data_status_entropy("OPS")
+    NAVARCH_DSE, NAVARCH_DSE_New = KIF.get_network_data_status_entropy("NAVARCH")
+    DIST_DSE, DIST_DSE_New = KIF.get_network_data_status_entropy("DIST")
+    I_GLOBAL_DSE, I_GLOBAL_DSE_New = KIF.get_network_data_status_entropy("I_GLOBAL")
+    K_GLOBAL_DSE, K_GLOBAL_DSE_New = KIF.get_network_data_status_entropy("K_GLOBAL")
+    ALL_DSE, ALL_DSE_New = KIF.get_network_data_status_entropy()
+    DSE_dict = {
+        "OPS" : OPS_DSE,
+        "NAVARCH" : NAVARCH_DSE ,
+        "DIST" : DIST_DSE,
+        "I_GLOBAL" : I_GLOBAL_DSE,
+        "K_GLOBAL" : K_GLOBAL_DSE,
+        "ALL": ALL_DSE
+    }
+    DSE_new_dict = {
+        "OPS" : OPS_DSE_New,
+        "NAVARCH" : NAVARCH_DSE_New ,
+        "DIST" : DIST_DSE_New,
+        "I_GLOBAL" : I_GLOBAL_DSE_New,
+        "K_GLOBAL" : K_GLOBAL_DSE_New,
+        "ALL": ALL_DSE_New
+    }
+
+    for name, vals in DSE_dict.items():
+        KIF.save_entropy_time_series_plot(vals,
+            filename = '{}_DSE_SIMPLE'.format(name),
+            xlabel = 'Time',
+            ylabel = 'Data Status Entropy',
+            title = '{}'.format(name),
+            x_min = 0,
+            x_max = KIF.time_step,
+            y_min = -0.01,
+            y_max=1.01,
+            grid = True
+            )
+    for name, vals in DSE_new_dict.items():
+        KIF.save_entropy_time_series_plot(vals,
+            filename = '{}_DSE_New_SIMPLE'.format(name),
+            xlabel = 'Time',
+            ylabel = 'Data Status Entropy (NEW)',
+            title = '{}'.format(name),
+            x_min = 0,
+            x_max = KIF.time_step,
+            y_min = -0.01,
+            y_max=1.01,
+            grid = True
+            )
 
     KIF.save_network_pickle("{}_network".format(case_name))
     edge_df = KIF.create_dataframe()
@@ -1467,19 +1507,6 @@ def run_simple_case(case_study_filename):
     #KIF.draw_framework()
     #KIF.draw_layer("I_GLOBAL")
 
-    #[print(n,d) for n,d in KIF.network.nodes(data=True) if d['layer'] == "OPS"]
-    # Find local nodes to transfer to IG
-
-
-    #[print(n,d) for n,d in KIF.network.nodes(data=True) if d['layer'] == "I_GLOBAL"]
-    #print("---------------------NAVARCH--------------------")
-    #[print(d['node_name'], "\n" ,d['val'], "\n", d['data_status'], "\n", d['val_ts'], "\n", d['data_status_ts']) for n,d in KIF.local_K['NAVARCH'].network.nodes(data=True)]
-    #print("-----------------------OPS----------------------")
-    #[print(d['node_name'], "\n" ,d['val'], "\n", d['data_status'], "\n", d['val_ts'], "\n", d['data_status_ts']) for n,d in KIF.local_K['OPS'].network.nodes(data=True)]
-    #print("-------------------I_GLOBAL----------------------")
-    #[print("\n", d['node_name'], "  ", d['layer'], "\n" ,d['val'], "\n", d['data_status'], "\n", d['val_ts'], "\n", d['data_status_ts']) for n,d in KIF.network.nodes(data=True) if d['layer'] == "I_GLOBAL"]
-    #print("-----------------------ALL----------------------")
-    #[print("\n", d['node_name'], "  ", d['layer'], "\n" ,d['val'], "\n", d['data_status'], "\n", d['val_ts'], "\n", d['data_status_ts']) for n,d in KIF.network.nodes(data=True)]
 
 def run_hard_case(case_study_filename):
 
@@ -1734,107 +1761,81 @@ def run_hard_case(case_study_filename):
 
     # --------------------- PLOTTING FIGURES ----------------------
 
-    # # ------------------------ Topological Entropy ----------------------
-    # OPS_TE = KIF.build_topological_entropy_time_series("OPS")
-    # NAVARCH_TE = KIF.build_topological_entropy_time_series("NAVARCH")
-    # DIST_TE = KIF.build_topological_entropy_time_series("DIST")
-    # I_GLOBAL_TE = KIF.build_topological_entropy_time_series("I_GLOBAL")
-    # K_GLOBAL_TE = KIF.build_topological_entropy_time_series("K_GLOBAL")
-    # KIF.save_entropy_time_series_plot(OPS_TE,
-    #     filename = 'OPS_TE_HARD',
-    #     xlabel = 'Time',
-    #     ylabel = 'Topological Entropy',
-    #     title = 'OPS',
-    #     x_min = 0,
-    #     x_max = KIF.time_step,
-    #     y_min = -0.01,
-    #     y_max=6,
-    #     grid = True
-    #     )
-    # KIF.save_entropy_time_series_plot(NAVARCH_TE,
-    #     filename = 'NAVARCH_TE_HARD',
-    #     xlabel = 'Time',
-    #     ylabel = 'Topological Entropy',
-    #     title = 'NAVARCH',
-    #     x_min = 0,
-    #     x_max = KIF.time_step,
-    #     y_min = -0.01,
-    #     y_max=6,
-    #     grid = True
-    #     )
-    # KIF.save_entropy_time_series_plot(DIST_TE,
-    #     filename = 'DIST_TE_HARD',
-    #     xlabel = 'Time',
-    #     ylabel = 'Topological Entropy',
-    #     title = 'DIST',
-    #     x_min = 0,
-    #     x_max = KIF.time_step,
-    #     y_min = -0.01,
-    #     y_max=6,
-    #     grid = True
-    #     )
-    # KIF.save_entropy_time_series_plot(I_GLOBAL_TE,
-    #     filename = 'I_GLOBAL_TE_HARD',
-    #     xlabel = 'Time',
-    #     ylabel = 'Topological Entropy',
-    #     title = 'Global Information',
-    #     x_min = 0,
-    #     x_max = KIF.time_step,
-    #     y_min = -0.01,
-    #     y_max=6,
-    #     grid = True
-    #     )
-    # KIF.save_entropy_time_series_plot(K_GLOBAL_TE,
-    #     filename = 'K_GLOBAL_TE_HARD',
-    #     xlabel = 'Time',
-    #     ylabel = 'Topological Entropy',
-    #     title = 'Global Knowledge',
-    #     x_min = 0,
-    #     x_max = KIF.time_step,
-    #     y_min = -0.01,
-    #     y_max= 6,
-    #     grid = True
-    #     )
+    # ------------------------ Topological Entropy ----------------------
 
-    # # ------------------------ DSE ----------------------
-    #
-    # OPS_DSE = KIF.get_network_data_status_entropy("OPS")
-    # NAVARCH_DSE = KIF.get_network_data_status_entropy("NAVARCH")
-    # DIST_DSE = KIF.get_network_data_status_entropy("DIST")
-    # KIF.save_entropy_time_series_plot(OPS_DSE,
-    #     filename = 'OPS_DSE_HARD',
-    #     xlabel = 'Time',
-    #     ylabel = 'DSE',
-    #     title = 'OPS',
-    #     x_min = 0,
-    #     x_max = KIF.time_step,
-    #     y_min = -0.01,
-    #     y_max=1.01,
-    #     grid = True
-    #     )
-    # KIF.save_entropy_time_series_plot(NAVARCH_DSE,
-    #     filename = 'NAVARCH_DSE_HARD',
-    #     xlabel = 'Time',
-    #     ylabel = 'DSE',
-    #     title = 'NAVARCH',
-    #     x_min = 0,
-    #     x_max = KIF.time_step,
-    #     y_min = -0.01,
-    #     y_max=1.01,
-    #     grid = True
-    #     )
-    # KIF.save_entropy_time_series_plot(DIST_DSE,
-    #     filename = 'DIST_DSE_HARD',
-    #     xlabel = 'Time',
-    #     ylabel = 'DSE',
-    #     title = 'DIST',
-    #     x_min = 0,
-    #     x_max = KIF.time_step,
-    #     y_min = -0.01,
-    #     y_max=1.01,
-    #     grid = True
-    #     )
-    #
+    TE_dict = {
+        "OPS" : KIF.build_topological_entropy_time_series("OPS"),
+        "NAVARCH" : KIF.build_topological_entropy_time_series("NAVARCH"),
+        "DIST" : KIF.build_topological_entropy_time_series("DIST"),
+        "I_GLOBAL" : KIF.build_topological_entropy_time_series("I_GLOBAL"),
+        "K_GLOBAL" : KIF.build_topological_entropy_time_series("K_GLOBAL"),
+        "ALL": KIF.build_topological_entropy_time_series()
+    }
+
+    for name, vals in TE_dict.items():
+        KIF.save_entropy_time_series_plot(vals,
+            filename = '{}_TE_HARD'.format(name),
+            xlabel = 'Time',
+            ylabel = 'Topological Entropy',
+            title = '{}'.format(name),
+            x_min = 0,
+            x_max = KIF.time_step,
+            y_min = -0.01,
+            y_max=7,
+            grid = True
+            )
+
+    #------------------------ Data Status Entropy ----------------------
+
+    OPS_DSE, OPS_DSE_New = KIF.get_network_data_status_entropy("OPS")
+    NAVARCH_DSE, NAVARCH_DSE_New = KIF.get_network_data_status_entropy("NAVARCH")
+    DIST_DSE, DIST_DSE_New = KIF.get_network_data_status_entropy("DIST")
+    I_GLOBAL_DSE, I_GLOBAL_DSE_New = KIF.get_network_data_status_entropy("I_GLOBAL")
+    K_GLOBAL_DSE, K_GLOBAL_DSE_New = KIF.get_network_data_status_entropy("K_GLOBAL")
+    ALL_DSE, ALL_DSE_New = KIF.get_network_data_status_entropy()
+
+    DSE_dict = {
+        "OPS" : OPS_DSE,
+        "NAVARCH" : NAVARCH_DSE ,
+        "DIST" : DIST_DSE,
+        "I_GLOBAL" : I_GLOBAL_DSE,
+        "K_GLOBAL" : K_GLOBAL_DSE,
+        "ALL": ALL_DSE
+    }
+    DSE_new_dict = {
+        "OPS" : OPS_DSE_New,
+        "NAVARCH" : NAVARCH_DSE_New ,
+        "DIST" : DIST_DSE_New,
+        "I_GLOBAL" : I_GLOBAL_DSE_New,
+        "K_GLOBAL" : K_GLOBAL_DSE_New,
+        "ALL": ALL_DSE_New
+    }
+
+    for name, vals in DSE_dict.items():
+        KIF.save_entropy_time_series_plot(vals,
+            filename = '{}_DSE_HARD'.format(name),
+            xlabel = 'Time',
+            ylabel = 'Data Status Entropy',
+            title = '{}'.format(name),
+            x_min = 0,
+            x_max = KIF.time_step,
+            y_min = -0.01,
+            y_max=1.01,
+            grid = True
+            )
+    for name, vals in DSE_new_dict.items():
+        KIF.save_entropy_time_series_plot(vals,
+            filename = '{}_DSE_New_HARD'.format(name),
+            xlabel = 'Time',
+            ylabel = 'Data Status Entropy (NEW)',
+            title = '{}'.format(name),
+            x_min = 0,
+            x_max = KIF.time_step,
+            y_min = -0.01,
+            y_max=1.01,
+            grid = True
+            )
+
     KIF.save_network_pickle("{}_network".format(case_name))
     edge_df = KIF.create_dataframe()
     node_df = KIF.create_node_dataframe()
@@ -1848,67 +1849,53 @@ def run_hard_case(case_study_filename):
 def main():
 
     #GMT_case_study("case_study_parameters.yaml")
-    run_simple_case("simple_case_study_parameters.yaml")
+    #run_simple_case("simple_case_study_parameters.yaml")
     #run_hard_case("hard_case_study_parameters.yaml")
 
-    G = get_network_pickle("SIMPLE_CASE_network")
-    export_for_gephi(G, "SIMPLE_CASE")
+    # ------------------- SIMPLE ---------------------
+    # G = get_network_pickle("SIMPLE_CASE_network")
+    # node_df = get_pickle("SIMPLE_CASE_node_data")
+    # edge_df = get_pickle("SIMPLE_CASE_edge_data")
+
+    # ---------------------- HARD --------------------
+    G = get_network_pickle("HARD_CASE_network")
+    node_df = get_pickle("HARD_CASE_node_data")
+    edge_df = get_pickle("HARD_CASE_edge_data")
 
 
-    #
-    # # for n,d in G.nodes(data=True):
-    # #     print('\n', n, d['node_name'], d['layer'])
-    # #     print(d['val'])
-    # #     print(d['data_status'])
-    # #     print(d['val_ts'])
-    # #     print(d['data_status_ts'])
-    #
-    # #[print(n,k,v) for k,v in d.items() for n,d in G.nodes(data=True)]
-    #
-    # # G = get_network_pickle("SIMPLE_CASE_network")
-    # #
-    # # #nx.write_pajek(G,"test.net")
-    # dfs = []
-    # for node, node_data in G.nodes(data=True):
-    #     node_name = node_data['node_name']
-    #     layer = node_data['layer']
-    #     type = node_data['type']
-    #     time = [t for t,ds in node_data['data_status_ts'].items()]
-    #     ds = [ds for t,ds in node_data['data_status_ts'].items()]
-    #     values = [val for t,val in node_data['val_ts'].items()]
-    #     data_dict = {'data_status':ds, "val":values, 'time': time}
-    #     tdf = pd.DataFrame(data_dict)
-    #     tdf['node_name'] = node_name
-    #     tdf['layer'] = layer
-    #     tdf['type'] = type
-    #     dfs.append(tdf)
-    # df = pd.concat(dfs).reset_index(drop=True)
+    #export_for_gephi(G, "SIMPLE_CASE_PROJ")
 
-    # save_pickle(df, "HARD_CASE_node_data")
-    #
-    #
-    # #print(df)
-    df = get_pickle("HARD_CASE_node_data")
-    midf = df.set_index(['layer','node_name', 'time'])
-    print(midf.loc['I_GLOBAL',:,:].to_string())
+    node_name = 'Trim'
+    layer_name = 'I_GLOBAL'
+    midf = node_df.set_index(['layer','node_name', 'time'])
+    print(midf.to_string())
+    temp = midf.loc[layer_name,node_name,:]['val'].dropna()
 
+    H = {}
+    for row in range(1,len(temp.index)+1):
+        #print(temp[:row])
+        #hist, bin_edges = np.histogram(temp, density = True)
+        #print(hist, bin_edges)
+        hist_data = plt.hist(temp[:row], density = True, range = (-0.1,0.1), bins = 20)
+        bins = hist_data[1][1:]
+        probs = hist_data[0]*(bins[1]-bins[0])
 
+        d = dit.ScalarDistribution(bins,probs)
+        H[row] = dit.other.generalized_cumulative_residual_entropy(d)
 
-    #temp = midf.loc[['NAVARCH','I_GLOBAL'],"x_veh",:]
-    #print(temp)
-    #
-    # # plt.figure()
-    # # sns.set()
-    # # sns.set_style('white')
-    # # plt.plot(temp)
-    # # sns.despine()
-    # # plt.xlabel("")
-    # # plt.ylabel("")
-    # # # plt.xlim()
-    # # # plt.ylim(y_min,y_max)
-    # # plt.grid(False)
-    # # plt.show()
-    # # #plt.title()
+    [print(k,v) for k,v in H.items()]
+    plt.figure()
+    sns.set()
+    sns.set_style('white')
+    plt.plot(H.keys(),H.values())
+    sns.despine()
+    plt.xlabel("")
+    plt.ylabel("")
+    # plt.xlim()
+    # plt.ylim(y_min,y_max)
+    plt.grid(False)
+    plt.show()
+    #plt.title()
     #
     #
     # G1 = create_DiGraph_from_MultiDiGraph(G)

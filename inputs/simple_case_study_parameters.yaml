@@ -18,9 +18,9 @@ layer_networks:
   DIST: "KS_DIST.net"
 
 KG_target_nodes:
-      #n_F35: 0
-      #n_V22: 0
-      #n_AV8B: 0
+      n_F35: 0
+      n_V22: 0
+      n_AV8B: 0
       n_SH60: 36
       GMT:
       '%':
