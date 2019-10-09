@@ -86,7 +86,11 @@ class Excel(object):
 
     def run_macro(self, macro_name):
         macro = self.wb.macro(macro_name)
-        macro()
+        return macro() ## Check this!!
+
+    def run_function(self, macro_name):
+        macro = self.wb.macro(macro_name)
+        return macro()
 
     def close(self):
         self.wb.close()
@@ -139,7 +143,8 @@ class Knowledge_Network(object):
             'data_status': status,
             'time': self.time_step,
             'val_ts': {self.time_step: value},
-            'data_status_ts': {self.time_step: status}
+            'data_status_ts': {self.time_step: status},
+            'intermediate_vals': []
         }
         return out_dict
 
@@ -634,6 +639,7 @@ class Integrated_Framework(Knowledge_Network):
                 #print(new_data['val_ts'])
                 del new_data['val_ts']
                 del new_data['data_status_ts']
+                del new_data['intermediate_vals']
                 new_data['pos'] = [new_data['pos']]
                 new_data['val'] = node_data['val_ts'][row['time']]
                 new_data['data_status'] = node_data['data_status_ts'][row['time']]
@@ -690,15 +696,27 @@ class Integrated_Framework(Knowledge_Network):
             #self.local_K[local_layer_name].network.node[node_id]['val'] = self.network.node[node_id]['val']
 
         # Run macros (if specified)
+        intermediate_results = None
         if macro_name != None:
             excel_doc.run_macro(macro_name)
-            # Read independent variables back into network post-macro
+            # Store intermediate variables as well.
+            print(macro_name)
+            intermediate_results = self.get_intermediate_results(excel_doc)
+
+        # Read independent variables back into network post-macro
         for node_id, node_name in ind_nodes.items():
+            # Update values
             self.network.node[node_id]['val'] = excel_doc.read_val(sheet=local_layer_name, cell=excel_doc.cell_references[local_layer_name][node_name])
             self.local_K[local_layer_name].network.node[node_id]['val'] = self.network.node[node_id]['val']
             #self.network.node[node_id]['data_status'] = self.calculate_data_status(node_id)
+            # Update Data status
             self.calculate_data_status(node_id)
             self.local_K[local_layer_name].network.node[node_id]['data_status'] = self.network.node[node_id]['data_status']
+
+            # Update intermediate_vals if there are any
+            if intermediate_results != None:
+                self.network.node[node_id]['intermediate_vals'].extend(intermediate_results[node_name])
+                self.local_K[local_layer_name].network.node[node_id]['intermediate_vals'] = self.network.node[node_id]['intermediate_vals']
 
         # Read dependent values to network (outputs)
         for node_id, node_name in dep_nodes.items():
@@ -708,10 +726,50 @@ class Integrated_Framework(Knowledge_Network):
             self.calculate_data_status(node_id)
             self.local_K[local_layer_name].network.node[node_id]['data_status'] = self.network.node[node_id]['data_status']
 
-        ###NEED TO ADD UPDATES TO DATA STATUSES IN BOTH GLOBAL AND LOCAL LAYERS
-        # Close and (save?) excel document
+            # Update intermediate_vals if there are any
+            if intermediate_results != None:
+                self.network.node[node_id]['intermediate_vals'].extend(intermediate_results[node_name])
+                self.local_K[local_layer_name].network.node[node_id]['intermediate_vals'] = self.network.node[node_id]['intermediate_vals']
+
+        # Close and save excel document
         excel_doc.save_excel()
         excel_doc.close()
+
+    def get_intermediate_results(self, excel_doc):
+
+        step_results = excel_doc.run_function('Get_Step_Results')
+
+        if step_results != None:
+            step_results = list(step_results)
+            output = {}
+            for col in range(len(step_results[0])):
+                output[step_results[0][col]] = []
+                for row in range(1,len(step_results)):
+                    output[step_results[0][col]].append(step_results[row][col])
+            return output
+
+        else:
+            return None
+
+
+    # def get_intermediate_results(self, excel_filename = "", references_filename = "cell_references.yaml" ):
+    #     excel_doc = Excel(excel_filename, references_filename)#, save_filename = "local_calculations_enhanced_final_state.xlsm")
+    #     step_results = excel_doc.run_function('Get_Step_Results')
+    #     if step_results != None:
+    #         step_results = list(step_results)
+    #
+    #         output = {}
+    #         for col in range(len(step_results[0])):
+    #             output[step_results[0][col]] = {}
+    #             for row in range(1,len(step_results)):
+    #                 output[step_results[0][col]].update({row:step_results[row][col]})
+    #
+    #         #print(macro_name)
+    #         [print(k,v) for k,v in output.items()]
+    #         print()
+    #
+    #     excel_doc.close()
+
 
     def find_negotiated_nodes(self, target_node_id, local_layer_name):
         out_nodes = []
@@ -1583,6 +1641,7 @@ def run_hard_case(case_study_filename):
             KIF.send_node_value(start_node_name=KG_target_node_name, start_layer="I_GLOBAL",end_node_name=KG_target_node_name, end_layer="OPS")
 
     KIF.do_local_calculations(local_layer_name = "OPS", excel_filename = excel_filename, macro_name = "Calculate_OPS_z")
+    #KIF.get_intermediate_results(excel_filename = excel_filename, references_filename = "cell_references.yaml" )
     KIF.update_time()
 
     # Send the values from the selected OPS nodes back to Global information
@@ -1594,6 +1653,7 @@ def run_hard_case(case_study_filename):
     for node_id, node_name in negotiated_nodes:
         KIF.send_node_value(node_name, "I_GLOBAL", node_name, "NAVARCH")
     KIF.do_local_calculations(local_layer_name = "NAVARCH", excel_filename = excel_filename, macro_name = "Calculate_NAVARCH_z_fuel")
+    #KIF.get_intermediate_results(excel_filename = excel_filename, references_filename = "cell_references.yaml" )
     KIF.update_time()
 
     # Send GMT Value to IG
@@ -1618,6 +1678,7 @@ def run_hard_case(case_study_filename):
 
     # Do the calculations in the NAVARCH LAYER
     KIF.do_local_calculations(local_layer_name = "NAVARCH", excel_filename = excel_filename, macro_name = "Calculate_Trim")
+    #KIF.get_intermediate_results(excel_filename = excel_filename, references_filename = "cell_references.yaml" )
     #KIF.update_time()
 
     # Communicate the Trim value to the IG layer
@@ -1662,7 +1723,8 @@ def run_hard_case(case_study_filename):
         KIF.send_node_value(node_name, "I_GLOBAL", node_name, "OPS")
 
     # Have OPS do their calculation to select the x,v for each vehicle. If exact solution found, done. Else, transmit new val to IG, then to NAVARCH
-    KIF.do_local_calculations(local_layer_name = "OPS", excel_filename = excel_filename, macro_name = "Recalculate_OPS")
+    KIF.do_local_calculations(local_layer_name = "OPS", excel_filename = excel_filename, macro_name = "Calculate_OPS_Vehicle_Locs") ######## USED TO BE "Recalculate_OPS"
+    #KIF.get_intermediate_results(excel_filename = excel_filename, references_filename = "cell_references.yaml" )
     KIF.update_time()
 
     # Communicate OPS node back to IG
@@ -1676,6 +1738,7 @@ def run_hard_case(case_study_filename):
 
     # Have NAVARCH recalculate trim (since its out of bounds)
     KIF.do_local_calculations(local_layer_name = "NAVARCH", excel_filename = excel_filename, macro_name = 'Recalculate_Trim')
+    #KIF.get_intermediate_results(excel_filename = excel_filename, references_filename = "cell_references.yaml" )
     KIF.update_time()
 
     # Communicate the Trim value to the IG layer
@@ -1718,10 +1781,12 @@ def run_hard_case(case_study_filename):
     KIF.send_node_value("z_fuel", "I_GLOBAL", "z_fuel", "DIST")
     KIF.do_local_calculations(local_layer_name = "DIST", excel_filename = excel_filename, macro_name = "Calculate_Power_Req")
     KIF.do_local_calculations(local_layer_name = "DIST", excel_filename = excel_filename, macro_name = "Calculate_Power_Req")
+    #KIF.get_intermediate_results(excel_filename = excel_filename, references_filename = "cell_references.yaml" )
     KIF.update_time()
 
     # Recalculate z_fuel since it no longer works
     KIF.do_local_calculations(local_layer_name = "DIST", excel_filename = excel_filename, macro_name = "Recalculate_DIST")
+    #KIF.get_intermediate_results(excel_filename = excel_filename, references_filename = "cell_references.yaml" )
     KIF.update_time()
 
     # Communicate z_fuel to IG
@@ -1858,44 +1923,248 @@ def main():
     # edge_df = get_pickle("SIMPLE_CASE_edge_data")
 
     # ---------------------- HARD --------------------
-    G = get_network_pickle("HARD_CASE_network")
-    node_df = get_pickle("HARD_CASE_node_data")
-    edge_df = get_pickle("HARD_CASE_edge_data")
+    #G = get_network_pickle("HARD_CASE_network")
+    #node_df = get_pickle("HARD_CASE_node_data")
+    #edge_df = get_pickle("HARD_CASE_edge_data")
+
+    # ---------------------- TEMP --------------------
+    G = get_network_pickle("TEMP_CASE_network")
+    node_df = get_pickle("TEMP_CASE_node_data")
+    edge_df = get_pickle("TEMP_CASE_edge_data")
+
+    def plot_intermediate_TVE(G, layer_name, node_name, bins = 100, show = True):
+
+        int_vals = [v2 for k,v in G.nodes(data=True) if v['layer'] == layer_name and v['node_name'] == node_name for v2 in v['intermediate_vals'] ]
+        int_vals = pd.DataFrame(int_vals)
+        all_diff = int_vals.diff().dropna()
+
+        H_diff = {}
+        for row in range(2,len(int_vals.index)+1):
+            diff = int_vals[:row].diff().dropna()
+            hist, bin_edges = np.histogram(diff, bins = bins, range = (min(all_diff[0]), max(all_diff[0])), density = True)
+
+            bins_diff = bin_edges[1:]
+            if row == 2:
+                probs_diff = hist*(bins_diff[1]-bins_diff[0])
+            else:
+                probs_diff = hist*(bins_diff[1]-bins_diff[0])
+
+            d = dit.ScalarDistribution(bins_diff,probs_diff)
+            H_diff[row] = dit.other.generalized_cumulative_residual_entropy(d)
+
+        H_raw = {}
+        for row in range(1,len(int_vals.index)+1):
+            raw_vals = int_vals[:row]
+
+            hist, bin_edges = np.histogram(raw_vals, bins = bins, range = (min(int_vals[0]), max(int_vals[0])), density = True)
+
+            bins_raw = bin_edges[1:]
+            if row == 2:
+                probs = hist*(bins_raw[1]-bins_raw[0])
+            else:
+                probs = hist*(bins_raw[1]-bins_raw[0])
+
+            d = dit.ScalarDistribution(bins_raw,probs)
+            H_raw[row] = dit.other.generalized_cumulative_residual_entropy(d)
+
+
+        fig, (ax1,ax2,ax3) = plt.subplots(3,1, figsize = (7,7))
+        sns.set()
+        sns.set_style('white')
+        ax1.plot(H_diff.keys(),H_diff.values(),'-b')
+        ax1.plot(H_raw.keys(),H_raw.values(),'-r')
+        ax1.legend(["H(Diff)","H(Raw Data)"])
+        ax1.title.set_text('Target Value Entropy')
+        ax1.set_ylabel('TVE')
+        ax1.set_xlabel('Iteration')
+        sns.despine()
+
+        #ax2 = ax1.twinx()
+        ax2.plot(all_diff, '-b')
+        ax2.plot(int_vals, '-r')
+        ax2.legend(["Diff","Raw Data"])
+        ax2.title.set_text('Value Plots')
+        ax2.set_ylabel('Value')
+        ax2.set_xlabel('Iteration')
+        sns.despine()
+
+        #ax3.hist(temp2, bins = 100, range = (min(all_diff[0]), max(all_diff[0])), density = True)
+        ax3.bar(bins_diff, probs_diff, width = bins_diff[1]-bins_diff[0], color = 'b', alpha = 0.5)
+        ax3.bar(bins_raw, probs, width = bins_raw[1]-bins_raw[0], color = 'r',alpha = 0.5)
+        ax3.legend(["Diff","Raw Data"])
+        ax3.title.set_text('Histogram of observed values')
+        ax3.set_ylabel('Probability')
+        ax3.set_xlabel('Value')
+        sns.despine()
+
+        fig.suptitle("Layer: {}, Node: {}".format(layer_name, node_name))
+        fig.tight_layout()
+        fig.subplots_adjust(top=0.88)
+
+        if show == True:
+            plt.show()
+
+        #temp.index = range(1,len(temp)+1)
+        #print(temp.to_string())
+
+    def test_TVE_sum(G, layer_name, bins = 100, show = True):
+
+        int_vals = [v2 for k,v in G.nodes(data=True) if v['layer'] == layer_name and v['node_name'] == 'x_veh' for v2 in v['intermediate_vals'] ]
+        int_vals1 = [v2 for k,v in G.nodes(data=True) if v['layer'] == layer_name and v['node_name'] == 'x_F35' for v2 in v['intermediate_vals'] ]
+        int_vals2 = [v2 for k,v in G.nodes(data=True) if v['layer'] == layer_name and v['node_name'] == 'x_V22' for v2 in v['intermediate_vals'] ]
+        int_vals3 = [v2 for k,v in G.nodes(data=True) if v['layer'] == layer_name and v['node_name'] == 'x_AV8B' for v2 in v['intermediate_vals'] ]
+        int_vals4 = [v2 for k,v in G.nodes(data=True) if v['layer'] == layer_name and v['node_name'] == 'x_SH60' for v2 in v['intermediate_vals'] ]
+
+        W_veh = [v2 for k,v in G.nodes(data=True) if v['layer'] == layer_name and v['node_name'] == 'W_veh' for v2 in v['intermediate_vals'] ]
+        W_F35 = [v2 for k,v in G.nodes(data=True) if v['layer'] == layer_name and v['node_name'] == 'W_F35' for v2 in v['intermediate_vals'] ]
+        W_V22 = [v2 for k,v in G.nodes(data=True) if v['layer'] == layer_name and v['node_name'] == 'W_V22' for v2 in v['intermediate_vals'] ]
+        W_AV8B = [v2 for k,v in G.nodes(data=True) if v['layer'] == layer_name and v['node_name'] == 'W_AV8B' for v2 in v['intermediate_vals'] ]
+        W_SH60 = [v2 for k,v in G.nodes(data=True) if v['layer'] == layer_name and v['node_name'] == 'W_SH60' for v2 in v['intermediate_vals'] ]
+
+        int_vals = pd.DataFrame(int_vals)
+        int_vals1 = pd.DataFrame(int_vals1)
+        int_vals2 = pd.DataFrame(int_vals2)
+        int_vals3 = pd.DataFrame(int_vals3)
+        int_vals4 = pd.DataFrame(int_vals4)
+
+        int_vals_dict = {
+            'x_veh': int_vals,
+            'x_F35': int_vals1,
+            'x_V22': int_vals2,
+            'x_AV8B': int_vals3,
+            'x_SH60': int_vals4,
+        }
+
+        all_diff_dict = {
+            'x_veh': int_vals.diff().dropna(),
+            'x_F35': int_vals1.diff().dropna(),
+            'x_V22': int_vals2.diff().dropna(),
+            'x_AV8B': int_vals3.diff().dropna(),
+            'x_SH60': int_vals4.diff().dropna(),
+        }
+
+        H_diff_dict = {
+            'x_veh': {},
+            'x_F35': {},
+            'x_V22': {},
+            'x_AV8B': {},
+            'x_SH60': {}
+        }
+
+        H_dict = {
+            'x_veh': {},
+            'x_F35': {},
+            'x_V22': {},
+            'x_AV8B': {},
+            'x_SH60': {}
+        }
+
+
+        for node_name, int_vals in int_vals_dict.items():
+            for row in range(2,len(int_vals.index)+1):
+                diff = int_vals[:row].diff().dropna()
+                hist, bin_edges = np.histogram(diff, bins = bins, range = (min(all_diff_dict[node_name][0]), max(all_diff_dict[node_name][0])), density = True)
+
+                bins_diff = bin_edges[1:]
+                if row == 2:
+                    probs_diff = hist*(bins_diff[1]-bins_diff[0])
+                else:
+                    probs_diff = hist*(bins_diff[1]-bins_diff[0])
+
+                d = dit.ScalarDistribution(bins_diff,probs_diff)
+                H_diff_dict[node_name][row] = dit.other.generalized_cumulative_residual_entropy(d)
+
+
+            for row in range(1,len(int_vals.index)+1):
+                raw_vals = int_vals[:row]
+
+                hist, bin_edges = np.histogram(raw_vals, bins = bins, range = (min(int_vals[0]), max(int_vals[0])), density = True)
+
+                bins_raw = bin_edges[1:]
+                if row == 2:
+                    probs = hist*(bins_raw[1]-bins_raw[0])
+                else:
+                    probs = hist*(bins_raw[1]-bins_raw[0])
+
+                d = dit.ScalarDistribution(bins_raw,probs)
+                H_dict[node_name][row] = dit.other.generalized_cumulative_residual_entropy(d)
+
+        # sum answers
+        H_sum = {}
+        for t in range(1,220):
+            H_sum[t] = (W_F35[t-1]*H_dict['x_F35'][t] + W_V22[t-1]*H_dict['x_V22'][t] + W_AV8B[t-1]*H_dict['x_AV8B'][t] + W_SH60[t-1]*H_dict['x_SH60'][t])/(W_F35[t-1] + W_V22[t-1] + W_AV8B[t-1]+ W_SH60[t-1])
+
+        [print(H_sum[t], H_dict['x_veh'][t], H_sum[t] - H_dict['x_veh'][t] ) for t,v in H_sum.items()]
+        #[print(t,v) for t,v in H_dict['x_veh'].items()]
+
+
+        fig, (ax1,ax2,ax3) = plt.subplots(3,1, figsize = (7,7))
+        sns.set()
+        sns.set_style('white')
+        ax1.plot(H_sum.keys(),H_sum.values(),'-b')
+        ax1.plot(H_dict['x_veh'].keys(),H_dict['x_veh'].values(),'-r')
+        ax1.legend(["H_sum","H(x_veh)"])
+        ax1.title.set_text('Target Value Entropy')
+        ax1.set_ylabel('TVE')
+        ax1.set_xlabel('Iteration')
+        sns.despine()
+        plt.show()
+        #
+        # #ax2 = ax1.twinx()
+        # ax2.plot(all_diff, '-b')
+        # ax2.plot(int_vals, '-r')
+        # ax2.legend(["Diff","Raw Data"])
+        # ax2.title.set_text('Value Plots')
+        # ax2.set_ylabel('Value')
+        # ax2.set_xlabel('Iteration')
+        # sns.despine()
+        #
+        # #ax3.hist(temp2, bins = 100, range = (min(all_diff[0]), max(all_diff[0])), density = True)
+        # ax3.bar(bins_diff, probs_diff, width = bins_diff[1]-bins_diff[0], color = 'b', alpha = 0.5)
+        # ax3.bar(bins_raw, probs, width = bins_raw[1]-bins_raw[0], color = 'r',alpha = 0.5)
+        # ax3.legend(["Diff","Raw Data"])
+        # ax3.title.set_text('Histogram of observed values')
+        # ax3.set_ylabel('Probability')
+        # ax3.set_xlabel('Value')
+        # sns.despine()
+        #
+        # fig.suptitle("Layer: {}, Node: {}".format(layer_name, node_name))
+        # fig.tight_layout()
+        # fig.subplots_adjust(top=0.88)
+        #
+        # if show == True:
+        #     plt.show()
+
+
+    #node_df = get_pickle("TEMP_CASE_node_data")
+    #midf = node_df.set_index(['layer','node_name', 'time'])
+    #print(midf.to_string())
 
 
     #export_for_gephi(G, "SIMPLE_CASE_PROJ")
 
-    node_name = 'Trim'
-    layer_name = 'I_GLOBAL'
-    midf = node_df.set_index(['layer','node_name', 'time'])
-    print(midf.to_string())
-    temp = midf.loc[layer_name,node_name,:]['val'].dropna()
 
-    H = {}
-    for row in range(1,len(temp.index)+1):
-        #print(temp[:row])
-        #hist, bin_edges = np.histogram(temp, density = True)
-        #print(hist, bin_edges)
-        hist_data = plt.hist(temp[:row], density = True, range = (-0.1,0.1), bins = 20)
-        bins = hist_data[1][1:]
-        probs = hist_data[0]*(bins[1]-bins[0])
+    # ------------------------------PLOTTING-----------------------------------
 
-        d = dit.ScalarDistribution(bins,probs)
-        H[row] = dit.other.generalized_cumulative_residual_entropy(d)
+    # plot_intermediate_TVE(G,"OPS","x_veh",bins=100, show = False)
+    # plot_intermediate_TVE(G,"OPS","x_F35",bins=100, show = False)
+    # plot_intermediate_TVE(G,"OPS","x_AV8B",bins=100, show = False)
+    # plot_intermediate_TVE(G,"OPS","x_V22",bins=100, show = False)
+    # plot_intermediate_TVE(G,"OPS","x_SH60",bins=100, show = False)
+    # plt.show()
 
-    [print(k,v) for k,v in H.items()]
-    plt.figure()
-    sns.set()
-    sns.set_style('white')
-    plt.plot(H.keys(),H.values())
-    sns.despine()
-    plt.xlabel("")
-    plt.ylabel("")
-    # plt.xlim()
-    # plt.ylim(y_min,y_max)
-    plt.grid(False)
-    plt.show()
-    #plt.title()
+    test_TVE_sum(G,"OPS")
+
+    # node_name = 'Trim'
+    # layer_name = 'NAVARCH'
+    # midf = node_df.set_index(['layer','node_name', 'time'])
+    # #print(midf.to_string())
+    # temp = midf.loc[layer_name,node_name,:]['val'].dropna()
+    # #print(temp)
+
+
+
+
     #
     #
     # G1 = create_DiGraph_from_MultiDiGraph(G)
