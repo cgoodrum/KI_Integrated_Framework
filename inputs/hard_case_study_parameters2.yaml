@@ -1,0 +1,44 @@
+# THIS FILE SHOULD CONTAIN:
+#   - SEQUENCE OF LAYERS TO BE INVESTIGATED
+#   - INITIAL TARGET NODE IN THE KG LAYER
+
+name:
+  "TEMP_HARD_CASE_2"
+
+layer_sequence:
+  [
+    "NAVARCH",
+    "OPS",
+    "DIST"
+  ]
+
+layer_networks:
+  NAVARCH: "KS_navarch.net"
+  OPS: "KS_OPS_enhanced.net"
+  DIST: "KS_DIST.net"
+
+KG_target_nodes:
+      n_F35: 2
+      n_V22: 1
+      n_AV8B: 4
+      n_SH60: 13
+      GMT:
+      '%':
+      Trim:
+      required_power:
+      pipe_diameter:
+
+KG_sequence:
+  [
+    GMT,
+    Trim,
+    '%',
+    required_power,
+    pipe_diameter
+  ]
+
+excel_filename:
+  "local_calculations_enhanced.xlsm"
+
+references_filename:
+  "cell_references.yaml"

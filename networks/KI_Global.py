@@ -1499,7 +1499,7 @@ def run_simple_case(case_study_filename):
             ylabel = 'Topological Entropy',
             title = '{}'.format(name),
             x_min = 0,
-            x_max = KIF.time_step,
+            x_max = 40, #KIF.time_step,
             y_min = -0.01,
             y_max=7,
             grid = True
@@ -1537,20 +1537,21 @@ def run_simple_case(case_study_filename):
             ylabel = 'Data Status Entropy',
             title = '{}'.format(name),
             x_min = 0,
-            x_max = KIF.time_step,
-            y_min = -0.01,
+            x_max = 40, #KIF.time_step,
+            y_min = -0.1,
             y_max=1.01,
             grid = True
             )
     for name, vals in DSE_new_dict.items():
+
         KIF.save_entropy_time_series_plot(vals,
             filename = '{}_DSE_New_SIMPLE'.format(name),
             xlabel = 'Time',
             ylabel = 'Data Status Entropy (NEW)',
             title = '{}'.format(name),
             x_min = 0,
-            x_max = KIF.time_step,
-            y_min = -0.01,
+            x_max = 40, #KIF.time_step,
+            y_min = -0.1,
             y_max=1.01,
             grid = True
             )
@@ -1844,7 +1845,7 @@ def run_hard_case(case_study_filename):
             ylabel = 'Topological Entropy',
             title = '{}'.format(name),
             x_min = 0,
-            x_max = KIF.time_step,
+            x_max = 40, #KIF.time_step,
             y_min = -0.01,
             y_max=7,
             grid = True
@@ -1883,8 +1884,8 @@ def run_hard_case(case_study_filename):
             ylabel = 'Data Status Entropy',
             title = '{}'.format(name),
             x_min = 0,
-            x_max = KIF.time_step,
-            y_min = -0.01,
+            x_max = 40, #KIF.time_step,
+            y_min = -0.1,
             y_max=1.01,
             grid = True
             )
@@ -1895,8 +1896,8 @@ def run_hard_case(case_study_filename):
             ylabel = 'Data Status Entropy (NEW)',
             title = '{}'.format(name),
             x_min = 0,
-            x_max = KIF.time_step,
-            y_min = -0.01,
+            x_max = 40, #KIF.time_step,
+            y_min = -0.1,
             y_max=1.01,
             grid = True
             )
@@ -1915,12 +1916,19 @@ def main():
 
     #GMT_case_study("case_study_parameters.yaml")
     #run_simple_case("simple_case_study_parameters.yaml")
+    #run_simple_case("simple_case_study_parameters1.yaml")
+    #run_simple_case("simple_case_study_parameters2.yaml")
+    #run_simple_case("simple_case_study_parameters3.yaml")
     #run_hard_case("hard_case_study_parameters.yaml")
 
+    #run_hard_case("hard_case_study_parameters1.yaml")
+    #run_hard_case("hard_case_study_parameters2.yaml")
+    #run_hard_case("hard_case_study_parameters3.yaml")
+
     # ------------------- SIMPLE ---------------------
-    # G = get_network_pickle("SIMPLE_CASE_network")
-    # node_df = get_pickle("SIMPLE_CASE_node_data")
-    # edge_df = get_pickle("SIMPLE_CASE_edge_data")
+    #G = get_network_pickle("SIMPLE_CASE_network")
+    #node_df = get_pickle("SIMPLE_CASE_node_data")
+    #edge_df = get_pickle("_SIMPLE_CASE_edge_data")
 
     # ---------------------- HARD --------------------
     #G = get_network_pickle("HARD_CASE_network")
@@ -1928,9 +1936,145 @@ def main():
     #edge_df = get_pickle("HARD_CASE_edge_data")
 
     # ---------------------- TEMP --------------------
-    G = get_network_pickle("TEMP_CASE_network")
-    node_df = get_pickle("TEMP_CASE_node_data")
-    edge_df = get_pickle("TEMP_CASE_edge_data")
+    G_hard = get_network_pickle("TEMP_HARD_CASE_network")
+    node_df_hard = get_pickle("TEMP_HARD_CASE_node_data")
+    edge_df_hard = get_pickle("TEMP_HARD_CASE_edge_data")
+
+    G_simple = get_network_pickle("TEMP_SIMPLE_CASE_network")
+    node_df_simple = get_pickle("TEMP_SIMPLE_CASE_node_data")
+    edge_df_simple = get_pickle("TEMP_SIMPLE_CASE_edge_data")
+
+    #G1_simple = get_network_pickle("TEMP_SIMPLE_CASE_1_network")
+    #G2_simple = get_network_pickle("TEMP_SIMPLE_CASE_2_network")
+    #G3_simple = get_network_pickle("TEMP_SIMPLE_CASE_3_network")
+
+    #G1_hard = get_network_pickle("TEMP_HARD_CASE_1_network")
+    #G2_hard = get_network_pickle("TEMP_HARD_CASE_2_network")
+    #G3_hard = get_network_pickle("TEMP_HARD_CASE_3_network")
+
+    #print(node_df_simple.to_string())
+
+    def plot_intermediate_TVE_comparisons(G_dict, layer_name, node_name, bins = 100, show = True, plot_diff = False):
+
+        H_diff = {}
+        H_raw = {}
+        dfs = []
+        for G_name, G in G_dict.items():
+            int_vals = [v2 for k,v in G.nodes(data=True) if v['layer'] == layer_name and v['node_name'] == node_name for v2 in v['intermediate_vals'] ]
+            if int_vals == [None] * len(int_vals):
+                break
+
+            int_vals = pd.DataFrame(int_vals)
+
+            if plot_diff == True:
+                all_diff = int_vals.diff().dropna()
+
+                H_diff[G_name] = {}
+                for row in range(2,len(int_vals.index)+1):
+                    diff = int_vals[:row].diff().dropna()
+                    hist, bin_edges = np.histogram(diff, bins = bins, range = (min(all_diff[0]), max(all_diff[0])), density = True)
+
+                    bins_diff = bin_edges[1:]
+                    if row == 2:
+                        probs_diff = hist*(bins_diff[1]-bins_diff[0])
+                    else:
+                        probs_diff = hist*(bins_diff[1]-bins_diff[0])
+
+                    d = dit.ScalarDistribution(bins_diff,probs_diff)
+                    H_diff[G_name][row] = dit.other.generalized_cumulative_residual_entropy(d)
+
+                count = 1
+                for G_name, H in H_diff.items():
+                    temp_df = pd.DataFrame(list(H.items()), columns = ['Time','H'])
+                    temp_df['Name'] = G_name
+                    temp_df['Type'] = "DIFF"
+                    temp_df["Trial"] = count
+                    if "hard" in G_name:
+                        temp_df['Difficulty'] = "HARD"
+                    elif "simple" in G_name:
+                        temp_df['Difficulty'] = "SIMPLE"
+                    dfs.append(temp_df)
+                    count+=1
+
+
+            H_raw[G_name] = {}
+            for row in range(1,len(int_vals.index)+1):
+                raw_vals = int_vals[:row]
+                #print(node_name, raw_vals)
+                hist, bin_edges = np.histogram(raw_vals, bins = bins, range = (min(int_vals[0]), max(int_vals[0])), density = True)
+
+                bins_raw = bin_edges[1:]
+                if row == 2:
+                    probs = hist*(bins_raw[1]-bins_raw[0])
+                else:
+                    probs = hist*(bins_raw[1]-bins_raw[0])
+
+                d = dit.ScalarDistribution(bins_raw,probs)
+                H_raw[G_name][row] = dit.other.generalized_cumulative_residual_entropy(d)
+
+        count = 1
+        for G_name, H in H_raw.items():
+            temp_df = pd.DataFrame(list(H.items()), columns = ['Time','H'])
+            temp_df['Name'] = G_name
+            temp_df['Type'] = "RAW"
+            temp_df["Trial"] = count
+            if "hard" in G_name:
+                temp_df['Difficulty'] = "HARD"
+            elif "simple" in G_name:
+                temp_df['Difficulty'] = "SIMPLE"
+            dfs.append(temp_df)
+            count +=1
+
+
+
+        df = pd.concat(dfs,axis=0, sort=False).reset_index(drop=True)
+        #df_1 = pd.DataFrame(H_raw)
+        #df_1.dropna(how='any')
+
+        #print(df_1.to_string())
+
+        plt_df = df[(df['Type'] == "RAW") & (df["Time"] <= 217)]
+
+        plt.figure()
+        sns.set()
+        sns.set_style('white')
+        sns.lineplot(
+            x = 'Time',
+            y = 'H',
+            hue = 'Difficulty',
+            ci = 100,
+            n_boot = 1000,
+            data = plt_df
+        )
+        sns.lineplot(
+            x = 'Time',
+            y = 'H',
+            hue = 'Difficulty',
+            units = 'Trial',
+            estimator = None,
+            data = plt_df,
+            **{
+                'linewidth' : 0,
+                'marker': ''
+            }
+        )
+
+        sns.despine()
+        handles, labels = plt.gca().get_legend_handles_labels()
+        plt.gca().legend(handles=handles[1:3], labels=labels[1:3])
+        plt.xlabel('Time Step')
+        plt.ylabel('Target Value Entropy (TVE)')
+        plt.title("Layer: {}, Node: {}".format(layer_name, node_name))
+        axes = plt.gca()
+        axes.set_xlim([0,None])
+        axes.set_ylim([None,90])
+        locs, labels = plt.xticks()
+        #plt.xticks(np.arange(0, 16, step=1))
+        #plt.savefig('../figures\\' + 'CRE_Ensemble_Time_Series_t={}.png'.format(i))
+        if show == True:
+            plt.show()
+        #plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+
 
     def plot_intermediate_TVE(G, layer_name, node_name, bins = 100, show = True):
 
@@ -2091,14 +2235,14 @@ def main():
 
         # sum answers
         H_sum = {}
-        for t in range(1,220):
+        for t in range(1,len(int_vals.index)+1):
             H_sum[t] = (W_F35[t-1]*H_dict['x_F35'][t] + W_V22[t-1]*H_dict['x_V22'][t] + W_AV8B[t-1]*H_dict['x_AV8B'][t] + W_SH60[t-1]*H_dict['x_SH60'][t])/(W_F35[t-1] + W_V22[t-1] + W_AV8B[t-1]+ W_SH60[t-1])
-
-        [print(H_sum[t], H_dict['x_veh'][t], H_sum[t] - H_dict['x_veh'][t] ) for t,v in H_sum.items()]
+            #H_sum[t] = (0.25*H_dict['x_F35'][t] + 0.25*H_dict['x_V22'][t] + 0.25*H_dict['x_AV8B'][t] + 0.25*H_dict['x_SH60'][t])
+        #[print(H_dict['x_veh'][t], H_dict['x_F35'][t], H_dict['x_AV8B'][t], H_dict['x_V22'][t], H_dict['x_SH60'][t] ) for t,v in H_sum.items()]
         #[print(t,v) for t,v in H_dict['x_veh'].items()]
 
 
-        fig, (ax1,ax2,ax3) = plt.subplots(3,1, figsize = (7,7))
+        fig, (ax1,ax2,ax3) = plt.subplots(3,1, figsize = (6,6))
         sns.set()
         sns.set_style('white')
         ax1.plot(H_sum.keys(),H_sum.values(),'-b')
@@ -2109,16 +2253,69 @@ def main():
         ax1.set_xlabel('Iteration')
         sns.despine()
         plt.show()
-        #
-        # #ax2 = ax1.twinx()
-        # ax2.plot(all_diff, '-b')
-        # ax2.plot(int_vals, '-r')
-        # ax2.legend(["Diff","Raw Data"])
-        # ax2.title.set_text('Value Plots')
-        # ax2.set_ylabel('Value')
-        # ax2.set_xlabel('Iteration')
-        # sns.despine()
-        #
+
+    def calculate_target_value_entropy(G, layer_name, node_name, bins = 100, show = True, filename = None):
+
+        vals_dict = {k2:v2 for k,v in G.nodes(data=True) if v['layer'] == layer_name and v['node_name'] == node_name for k2, v2 in v['val_ts'].items() if v2 != None }
+        time = list(vals_dict.keys())
+        vals = list(vals_dict.values())
+        vals = pd.DataFrame(vals, index = time)
+        print(vals)
+        vals_diff = vals.diff().dropna()
+
+
+        H_diff = {}
+        for row in range(2,len(vals.index)+1):# vals.index.to_list()[1:]:#range(2,len(vals.index)+1):
+            diff = vals[:row].diff().dropna()
+            hist, bin_edges = np.histogram(diff, bins = bins, range = (min(vals_diff[0]), max(vals_diff[0])), density = True)
+
+            bins_diff = bin_edges[1:]
+            if row == 2:
+                probs_diff = hist*(bins_diff[1]-bins_diff[0])
+            else:
+                probs_diff = hist*(bins_diff[1]-bins_diff[0])
+
+            d = dit.ScalarDistribution(bins_diff,probs_diff)
+            H_diff[max(diff.index.to_list())] = dit.other.generalized_cumulative_residual_entropy(d)
+
+        H_raw = {}
+        for row in range(1,len(vals.index)+1):#vals.index.to_list():#range(1,len(vals.index)+1):
+            raw_vals = vals[:row]
+
+            hist, bin_edges = np.histogram(raw_vals, bins = bins, range = (min(vals[0]), max(vals[0])), density = True)
+
+            bins_raw = bin_edges[1:]
+            if row == 2:
+                probs = hist*(bins_raw[1]-bins_raw[0])
+            else:
+                probs = hist*(bins_raw[1]-bins_raw[0])
+
+            d = dit.ScalarDistribution(bins_raw,probs)
+            H_raw[max(raw_vals.index.to_list())] = dit.other.generalized_cumulative_residual_entropy(d)
+
+        #fig, (ax1,ax2,ax3) = plt.subplots(3,1, figsize = (7,7))
+        fig, (ax1,ax2) = plt.subplots(2,1, figsize = (7,7))
+        sns.set()
+        sns.set_style('white')
+        ax1.plot(H_diff.keys(),H_diff.values(),'-b')
+        ax1.plot(H_raw.keys(),H_raw.values(),'-r')
+        ax1.legend(["H(Diff)","H(Raw Data)"])
+        ax1.title.set_text('Target Value Entropy')
+        ax1.set_ylabel('TVE')
+        ax1.set_xlabel('Iteration')
+        ax1.set_xlim([0,40])
+        sns.despine()
+
+        #ax2 = ax1.twinx()
+        ax2.plot(vals_diff, '-b')
+        ax2.plot(vals, '-r')
+        ax2.legend(["Diff","Raw Data"])
+        ax2.title.set_text('Value Plots')
+        ax2.set_ylabel('Value')
+        ax2.set_xlabel('Iteration')
+        ax2.set_xlim([0,40])
+        sns.despine()
+
         # #ax3.hist(temp2, bins = 100, range = (min(all_diff[0]), max(all_diff[0])), density = True)
         # ax3.bar(bins_diff, probs_diff, width = bins_diff[1]-bins_diff[0], color = 'b', alpha = 0.5)
         # ax3.bar(bins_raw, probs, width = bins_raw[1]-bins_raw[0], color = 'r',alpha = 0.5)
@@ -2127,13 +2324,17 @@ def main():
         # ax3.set_ylabel('Probability')
         # ax3.set_xlabel('Value')
         # sns.despine()
-        #
-        # fig.suptitle("Layer: {}, Node: {}".format(layer_name, node_name))
-        # fig.tight_layout()
-        # fig.subplots_adjust(top=0.88)
-        #
-        # if show == True:
-        #     plt.show()
+
+        fig.suptitle("Layer: {}, Node: {}".format(layer_name, node_name))
+        fig.tight_layout()
+        fig.subplots_adjust(top=0.88)
+
+        if show == True:
+            plt.show()
+
+        if filename:
+            plt.savefig('../figures\\{}.png'.format(filename))
+
 
 
     #node_df = get_pickle("TEMP_CASE_node_data")
@@ -2141,19 +2342,52 @@ def main():
     #print(midf.to_string())
 
 
-    #export_for_gephi(G, "SIMPLE_CASE_PROJ")
+    #export_for_gephi(G_hard, "TEMP_HARD_CASE")
 
 
     # ------------------------------PLOTTING-----------------------------------
 
-    # plot_intermediate_TVE(G,"OPS","x_veh",bins=100, show = False)
+    # for node_id, node_data in G_hard.nodes(data=True):
+    #     node_name = node_data['node_name']
+    #     node_layer = node_data['layer']
+    #     calculate_target_value_entropy(G_hard,node_layer, node_name, bins=100, show = False, filename = "/TVE_nodes_HARD/{}_{}".format(node_layer,node_name))
+
+    # for node_id, node_data in G_simple.nodes(data=True):
+    #    node_name = node_data['node_name']
+    #    node_layer = node_data['layer']
+    #    calculate_target_value_entropy(G_hard,node_layer, node_name, bins=100, show = False, filename = "/TVE_nodes_SIMPLE/{}_{}".format(node_layer,node_name))
+
+    #plot_intermediate_TVE(G1_simple,"OPS","x_veh",bins=100, show = False)
+    #plot_intermediate_TVE(G2_simple,"OPS","x_veh",bins=100, show = False)
+    #plot_intermediate_TVE(G3_simple,"OPS","x_veh",bins=100, show = False)
+
+    #plot_intermediate_TVE(G1_hard,"OPS","x_veh",bins=100, show = False)
+    #plot_intermediate_TVE(G2_hard,"OPS","x_veh",bins=100, show = False)
+    #plot_intermediate_TVE(G3_hard,"OPS","x_veh",bins=100, show = False)
+
+    # G_dict = {
+    #     "G1_hard": G1_hard,
+    #     "G2_hard": G2_hard,
+    #     "G3_hard": G3_hard,
+    #     "G1_simple": G1_simple,
+    #     "G2_simple": G2_simple,
+    #     "G3_simple": G3_simple,
+    # }
+    #
+    # plot_intermediate_TVE_comparisons(G_dict,"OPS","x_veh",bins=100, show = False, plot_diff = True)
+    # plot_intermediate_TVE_comparisons(G_dict,"OPS","x_F35",bins=100, show = False, plot_diff = True)
+    # plot_intermediate_TVE_comparisons(G_dict,"OPS","x_V22",bins=100, show = False, plot_diff = True)
+    # plot_intermediate_TVE_comparisons(G_dict,"OPS","x_AV8B",bins=100, show = False, plot_diff = True)
+    # plot_intermediate_TVE_comparisons(G_dict,"OPS","x_SH60",bins=100, show = False, plot_diff = True)
+    # plt.show()
+
     # plot_intermediate_TVE(G,"OPS","x_F35",bins=100, show = False)
     # plot_intermediate_TVE(G,"OPS","x_AV8B",bins=100, show = False)
     # plot_intermediate_TVE(G,"OPS","x_V22",bins=100, show = False)
     # plot_intermediate_TVE(G,"OPS","x_SH60",bins=100, show = False)
-    # plt.show()
+    #plt.show()
 
-    test_TVE_sum(G,"OPS")
+    #test_TVE_sum(G,"OPS")
 
     # node_name = 'Trim'
     # layer_name = 'NAVARCH'
@@ -2161,7 +2395,6 @@ def main():
     # #print(midf.to_string())
     # temp = midf.loc[layer_name,node_name,:]['val'].dropna()
     # #print(temp)
-
 
 
 
